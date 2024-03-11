@@ -6,8 +6,8 @@ mod config;
 mod db;
 mod frame;
 mod init;
+mod master_server;
 mod replicaof;
-mod server;
 mod stream;
 mod util;
 
@@ -24,16 +24,9 @@ mod util;
 // set foo bar bar2
 // (error) ERR syntax error
 
-// remote: [build] > error: package `clap_lex v0.7.0` cannot be built because it requires rustc 1.74 or newer, while the currently active rustc version is 1.70.0
-// remote: [build] > Either upgrade to rustc 1.74 or newer, or use
-// remote: [build] > cargo update -p clap_lex@0.7.0 --precise ver
-// remote: [build] > where `ver` is the latest version of `clap_lex` supporting rustc 1.70.0
-// remote: [build] Build failed. Check the logs above for the reason.
-// remote: [build] If you think this is a CodeCrafters error, please contact us at hello@codecrafters.io.
-// remote:
 #[tokio::main]
 async fn main() {
     init::init();
 
-    server::run().await;
+    master_server::run().await;
 }

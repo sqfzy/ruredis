@@ -4,9 +4,9 @@ use std::{future, sync::atomic::Ordering, time::Duration};
 
 use super::CmdExecutor;
 use crate::{
+    config::{ACKOFFSET, CONFIG},
     db::Db,
     frame::Frame,
-    server::{ACKOFFSET, CONFIG},
     stream::FrameHandler,
     util::bytes_to_u64,
 };
@@ -23,7 +23,7 @@ pub enum Replconf {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Replconf {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
         Ok(None)
     }
 
@@ -54,7 +54,7 @@ pub struct Psync;
 
 #[async_trait::async_trait]
 impl CmdExecutor for Psync {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
         Ok(Some(Frame::Simple(format!(
             "FULLRESYNC {} 0",
             CONFIG.replid
@@ -103,7 +103,7 @@ pub struct Wait {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Wait {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
         Ok(None)
     }
 

@@ -1,8 +1,8 @@
 use super::CmdExecutor;
 use crate::{
+    config::{ACKOFFSET, CONFIG},
     db::Db,
     frame::Frame,
-    server::{ACKOFFSET, CONFIG},
 };
 use anyhow::Result;
 use bytes::Bytes;
@@ -20,7 +20,7 @@ pub struct Get {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Get {
-    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'GET'");
         let frame = match db.inner.write().await.string_db.get(self.key.clone()) {
             Some(value) => Frame::Bulk(value),
@@ -39,7 +39,7 @@ pub struct Set {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Set {
-    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'SET'");
         db.inner
             .write()

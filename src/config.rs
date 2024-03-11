@@ -3,8 +3,13 @@ use clap::Parser;
 use rand::Rng;
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr},
-    str::FromStr,
+    str::FromStr, sync::{atomic::AtomicU64, Arc},
 };
+
+pub static CONFIG: once_cell::sync::Lazy<Arc<RedisConfig>> =
+    once_cell::sync::Lazy::new(|| Arc::new(RedisConfig::new()));
+
+pub static ACKOFFSET: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Default)]
 pub struct RedisConfig {

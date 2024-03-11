@@ -1,7 +1,7 @@
-use crate::{db::Db, frame::Frame, server::CONFIG, stream::FrameHandler};
+use crate::{config::CONFIG, db::Db, frame::Frame, stream::FrameHandler};
 use anyhow::Result;
 use bytes::Bytes;
-use std::{net::SocketAddr, str::FromStr};
+use std::net::SocketAddr;
 use tokio::{io::AsyncReadExt, net::TcpStream, sync::broadcast::Sender};
 
 // 开启一个新的协程，连接master server
@@ -94,7 +94,7 @@ async fn handle_master_connection(
 ) -> Result<Option<()>> {
     if let Some(frame) = stream.read_frame().await? {
         let cmd = frame.clone().parse_cmd()?;
-        cmd.execute(db).await?;
+        cmd.master_execute(db).await?;
 
         cmd.hook(stream, db, tx, frame.clone()).await?;
         tracing::info!("received command from master: {}", frame);

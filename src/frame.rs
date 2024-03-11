@@ -136,6 +136,7 @@ impl TryFrom<Vec<Bytes>> for cmd::Set {
                 });
             }
             if len == 4 {
+                #[allow(clippy::single_match)]
                 match bulks[4].to_ascii_lowercase().as_slice() {
                     b"keepttl" => {
                         return Ok(cmd::Set {

@@ -13,7 +13,11 @@ pub use string_cmd::*;
 
 #[async_trait::async_trait]
 pub trait CmdExecutor: Send + Sync {
-    async fn execute(&self, db: &Db) -> anyhow::Result<Option<Frame>>;
+    async fn master_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>>;
+
+    async fn replicate_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>> {
+        Ok(None)
+    }
 
     async fn hook(
         &self,

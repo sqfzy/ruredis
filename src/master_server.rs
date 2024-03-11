@@ -1,19 +1,12 @@
-use crate::{
-    config::RedisConfig, db::Db, frame::Frame, replicaof::enable_replicaof, stream::FrameHandler,
-};
+use crate::config::CONFIG;
+use crate::{db::Db, frame::Frame, replicaof::enable_replicaof, stream::FrameHandler};
 use anyhow::Result;
-use std::sync::Arc;
-use std::{net::SocketAddr, sync::atomic::AtomicU64};
+use std::net::SocketAddr;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::broadcast::channel,
 };
 use tracing::{debug, error};
-
-pub static CONFIG: once_cell::sync::Lazy<Arc<RedisConfig>> =
-    once_cell::sync::Lazy::new(|| Arc::new(RedisConfig::new()));
-
-pub static ACKOFFSET: AtomicU64 = AtomicU64::new(0);
 
 // TODO: 将master和replica的逻辑流分开
 pub async fn run() {
@@ -81,7 +74,7 @@ async fn handle(
     if let Some(frame) = stream.read_frame().await? {
         let cmd = frame.clone().parse_cmd()?; // 解析Frame为一个命令
                                               // 执行命令，如果命令需要返回结果，则将结果写入stream
-        if let Some(res) = cmd.execute(db).await? {
+        if let Some(res) = cmd.master_execute(db).await? {
             stream.write_frame(res).await?;
         }
         cmd.hook(stream, db, tx, frame).await?; // 执行命令钩子

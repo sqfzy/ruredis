@@ -1,8 +1,8 @@
 use super::CmdExecutor;
 use crate::{
+    config::{ACKOFFSET, CONFIG},
     db::Db,
     frame::Frame,
-    server::{ACKOFFSET, CONFIG},
 };
 use anyhow::{anyhow, Error, Result};
 use bytes::Bytes;
@@ -16,7 +16,7 @@ pub struct Command;
 
 #[async_trait::async_trait]
 impl CmdExecutor for Command {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'COMMAND'");
         Ok(Some(Frame::Array(vec![])))
     }
@@ -28,22 +28,26 @@ pub struct Ping;
 
 #[async_trait::async_trait]
 impl CmdExecutor for Ping {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'PING'");
         Ok(Some(Frame::Simple("PONG".to_string())))
     }
 
-    async fn hook(
-        &self,
-        _stream: &mut tokio::net::TcpStream,
-        _db: &Db,
-        _frame_sender: &Sender<Frame>,
-        frame: Frame,
-    ) -> anyhow::Result<()> {
-        ACKOFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
-        // ctx.propagate_tx.send(frame)?; // if self is a replica, will do nothing
-        Ok(())
-    }
+    // async fn replicate_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>> {
+    //     Ok(None)
+    // }
+
+    // async fn hook(
+    //     &self,
+    //     _stream: &mut tokio::net::TcpStream,
+    //     _db: &Db,
+    //     _frame_sender: &Sender<Frame>,
+    //     frame: Frame,
+    // ) -> anyhow::Result<()> {
+    //     ACKOFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
+    //     // ctx.propagate_tx.send(frame)?; // if self is a replica, will do nothing
+    //     Ok(())
+    // }
 }
 
 // *2\r\n$4\r\necho\r\n$3\r\nhey\r\n
@@ -54,7 +58,7 @@ pub struct Echo {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Echo {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'ECHO'");
         Ok(Some(Frame::Bulk(self.msg.clone())))
     }
@@ -131,7 +135,7 @@ impl TryFrom<Vec<Bytes>> for Section {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Info {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'INFO'");
 
         match self.sections {
@@ -160,7 +164,7 @@ struct BgSave;
 
 #[async_trait::async_trait]
 impl CmdExecutor for BgSave {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
         tokio::spawn(async {
             // TODO:
         });
