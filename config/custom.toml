@@ -1,0 +1,10 @@
+[server]
+port = 6379                       # 服务器端口
+expire_check_interval_secs = 1000 # 检查过期键的频率
+
+[replication]
+max_replicate = 10 # 最多允许多少个从服务器连接到当前服务器
+
+[rdb]
+rdb_version = 1         # RDB版本
+enable_checksum = false # 是否开启RDB校验和

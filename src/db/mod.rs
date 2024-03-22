@@ -1,33 +1,74 @@
-mod list_db;
-mod string_db;
+#![allow(dead_code)]
+
+// mod list_db;
+mod string_kvs;
 
 use bytes::Bytes;
-use skiplist::SkipList;
+// use skiplist::SkipList;
 use std::{
     collections::{HashMap, VecDeque},
     sync::Arc,
+    time::SystemTime,
 };
-pub use string_db::StringDb;
+
 use tokio::sync::RwLock;
 
-use self::string_db::StringObj;
+pub const MAX_KVPAIRS_NUMS: u64 = u64::MAX;
 
 #[derive(Debug, Clone)]
 pub struct Db {
     pub inner: Arc<RwLock<DbInner>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DbInner {
-    pub string_db: StringDb,
+    pub string_kvs: KvPairs<String>,
 }
 
 impl Db {
     pub fn new() -> Self {
         Self {
             inner: Arc::new(RwLock::new(DbInner {
-                string_db: StringDb::new(),
+                string_kvs: KvPairs::<String>(HashMap::new()),
             })),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct String;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct List;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ZSet;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Hash;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Set;
+
+#[derive(Debug, Clone)]
+pub struct KvPairs<T: PartialEq + Eq>(pub HashMap<Bytes, Object<T>>);
+
+#[derive(Debug, Clone, Eq)]
+pub struct Object<T> {
+    pub value: ObjValue<T>,
+    pub expire_at: Option<SystemTime>, // None代表永不过期
+}
+
+impl<T: PartialEq + Eq> PartialEq for Object<T> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.expire_at.is_none() && other.expire_at.is_none() {
+            self.value == other.value
+        } else if self.expire_at.is_some() && other.expire_at.is_some() {
+            let time1 = self.expire_at.unwrap();
+            let time2 = other.expire_at.unwrap();
+            let cmp_res = match time1.duration_since(time2) {
+                Ok(duration) => duration.as_secs() < 1,
+                Err(e) => e.duration().as_secs() < 1,
+            };
+            cmp_res && self.value == other.value
+        } else {
+            false
         }
     }
 }
@@ -38,12 +79,12 @@ impl Db {
 //
 // struct SetDb(RwLock<HashMap<String, ObjValueCODEC>>);
 
-#[derive(Debug)]
-enum ObjValueCODEC<T = StringObj> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ObjValue<T> {
     Int(i64),
     Raw(Bytes),
     LinkedList(VecDeque<Bytes>),
-    SkipList(SkipList<Bytes>),
+    // SkipList(SkipList<Bytes>),
     // TODO:  ZipList()
     HT(HashMap<Bytes, Bytes>),
     IntSet(VecDeque<i64>),

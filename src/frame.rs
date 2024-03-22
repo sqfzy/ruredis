@@ -67,6 +67,7 @@ impl Frame {
                     }
                 }
             }
+            "bgsave" => return Ok(Box::new(cmd::BgSave)),
             _ => {}
         }
 
@@ -230,5 +231,37 @@ impl TryInto<Vec<Bytes>> for Frame {
 impl From<Vec<Bytes>> for Frame {
     fn from(value: Vec<Bytes>) -> Self {
         Frame::Array(value.into_iter().map(Frame::Bulk).collect())
+    }
+}
+
+#[cfg(test)]
+mod test_frame {
+    #[test]
+    fn test_num_of_bytes() {
+        use crate::frame::Frame;
+        let frame = Frame::Simple("OK".to_string()); // +OK\r\n
+        assert_eq!(frame.num_of_bytes(), 5);
+
+        let frame = Frame::Error("ERR".to_string()); // -ERR\r\n
+        assert_eq!(frame.num_of_bytes(), 6);
+
+        let frame = Frame::Integer(100); // :100\r\n
+        assert_eq!(frame.num_of_bytes(), 6);
+
+        let frame = Frame::Bulk("Hello".into()); // $5\r\nHello\r\n
+        assert_eq!(frame.num_of_bytes(), 11);
+
+        let frame = Frame::Null; // $-1\r\n
+        assert_eq!(frame.num_of_bytes(), 5);
+
+        // *5\r\n+OK\r\n-ERR\r\n:100\r\n$5\r\nHello\r\n$-1\r\n
+        let frame = Frame::Array(vec![
+            Frame::Simple("OK".to_string()),
+            Frame::Error("ERR".to_string()),
+            Frame::Integer(100),
+            Frame::Bulk("Hello".into()),
+            Frame::Null,
+        ]);
+        assert_eq!(frame.num_of_bytes(), 37);
     }
 }

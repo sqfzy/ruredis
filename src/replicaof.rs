@@ -1,18 +1,28 @@
-use crate::{config::CONFIG, db::Db, frame::Frame, stream::FrameHandler};
+use crate::{
+    conf::{ACK_OFFSET, CONFIG},
+    db::Db,
+    frame::Frame,
+    stream::FrameHandler,
+};
 use anyhow::Result;
 use bytes::Bytes;
-use std::net::SocketAddr;
+use std::sync::atomic::Ordering;
 use tokio::{io::AsyncReadExt, net::TcpStream, sync::broadcast::Sender};
 
 // 开启一个新的协程，连接master server
-pub fn enable_replicaof(master_addr: SocketAddr, db: Db, tx: Sender<Frame>) {
+pub fn enable_replicaof(
+    master_addr: String,
+    db: Db,
+    psync_to_others_sender: Sender<Frame>,
+    others_to_psync_sender: Sender<Frame>,
+) {
     tokio::spawn(async move {
         let mut to_master = TcpStream::connect(master_addr)
             .await
             .expect("Fail to connect to master");
 
         // 四路握手，与master server建立连接
-        replicaof_hanshake(&mut to_master, CONFIG.port)
+        replicaof_hanshake(&mut to_master, CONFIG.server.port)
             .await
             .expect("Fail to handshake");
 
@@ -21,7 +31,14 @@ pub fn enable_replicaof(master_addr: SocketAddr, db: Db, tx: Sender<Frame>) {
 
         loop {
             // 处理master server发送过来的命令
-            match handle_master_connection(&mut to_master, &db, &tx).await {
+            match handle_master_connection(
+                &mut to_master,
+                &db,
+                &psync_to_others_sender,
+                &others_to_psync_sender,
+            )
+            .await
+            {
                 Err(e) => {
                     let _ = to_master.write_frame(Frame::Error(e.to_string())).await;
                 }
@@ -90,14 +107,27 @@ async fn get_rdb(to_master: &mut TcpStream) -> Result<Vec<u8>> {
 async fn handle_master_connection(
     stream: &mut TcpStream,
     db: &Db,
-    tx: &Sender<Frame>,
+    psync_to_others_sender: &Sender<Frame>,
+    others_to_psync_sender: &Sender<Frame>,
 ) -> Result<Option<()>> {
     if let Some(frame) = stream.read_frame().await? {
-        let cmd = frame.clone().parse_cmd()?;
-        cmd.master_execute(db).await?;
+        tracing::info!("received from master: {}", frame);
 
-        cmd.hook(stream, db, tx, frame.clone()).await?;
-        tracing::info!("received command from master: {}", frame);
+        let cmd = frame.clone().parse_cmd()?;
+        if let Some(res) = cmd.replicate_execute(db).await? {
+            tracing::info!("sending to master: {}", res);
+            stream.write_frame(res).await?;
+        }
+        cmd.hook(
+            stream,
+            psync_to_others_sender,
+            others_to_psync_sender,
+            frame.clone(),
+        )
+        .await?;
+
+        // 记录从master中接收到的命令的字节数
+        ACK_OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
 
         Ok(Some(()))
     } else {

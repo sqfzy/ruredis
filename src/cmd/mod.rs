@@ -13,17 +13,19 @@ pub use string_cmd::*;
 
 #[async_trait::async_trait]
 pub trait CmdExecutor: Send + Sync {
-    async fn master_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>>;
+    async fn execute(&self, db: &Db) -> anyhow::Result<Option<Frame>>;
 
+    // 默认情况下，replicate不需要返回响应给master
     async fn replicate_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>> {
+        let _ = self.execute(db).await;
         Ok(None)
     }
 
     async fn hook(
         &self,
         _stream: &mut tokio::net::TcpStream,
-        _db: &Db,
-        _frame_sender: &Sender<Frame>,
+        _replacate_msg_sender: &Sender<Frame>,
+        _write_cmd_sender: &Sender<Frame>,
         _frame: Frame,
     ) -> anyhow::Result<()> {
         Ok(())

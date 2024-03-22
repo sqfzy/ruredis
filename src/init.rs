@@ -3,7 +3,7 @@ use tracing::Level;
 
 pub fn init() {
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "debug");
+        std::env::set_var("RUST_LOG", "info");
     }
 
     let level = Level::from_str(&std::env::var("RUST_LOG").unwrap()).unwrap();

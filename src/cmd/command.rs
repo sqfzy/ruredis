@@ -1,13 +1,12 @@
 use super::CmdExecutor;
 use crate::{
-    config::{ACKOFFSET, CONFIG},
+    conf::{ACK_OFFSET, CONFIG},
     db::Db,
     frame::Frame,
+    util,
 };
 use anyhow::{anyhow, Error, Result};
 use bytes::Bytes;
-use std::sync::atomic::Ordering;
-use tokio::sync::broadcast::Sender;
 use tracing::debug;
 
 // 当执行客户端redis-cli命令时，会执行该命令
@@ -16,7 +15,7 @@ pub struct Command;
 
 #[async_trait::async_trait]
 impl CmdExecutor for Command {
-    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'COMMAND'");
         Ok(Some(Frame::Array(vec![])))
     }
@@ -28,26 +27,10 @@ pub struct Ping;
 
 #[async_trait::async_trait]
 impl CmdExecutor for Ping {
-    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'PING'");
         Ok(Some(Frame::Simple("PONG".to_string())))
     }
-
-    // async fn replicate_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>> {
-    //     Ok(None)
-    // }
-
-    // async fn hook(
-    //     &self,
-    //     _stream: &mut tokio::net::TcpStream,
-    //     _db: &Db,
-    //     _frame_sender: &Sender<Frame>,
-    //     frame: Frame,
-    // ) -> anyhow::Result<()> {
-    //     ACKOFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
-    //     // ctx.propagate_tx.send(frame)?; // if self is a replica, will do nothing
-    //     Ok(())
-    // }
 }
 
 // *2\r\n$4\r\necho\r\n$3\r\nhey\r\n
@@ -58,7 +41,7 @@ pub struct Echo {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Echo {
-    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'ECHO'");
         Ok(Some(Frame::Bulk(self.msg.clone())))
     }
@@ -135,20 +118,22 @@ impl TryFrom<Vec<Bytes>> for Section {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Info {
-    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
+    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'INFO'");
 
         match self.sections {
             Section::Replication => {
-                let res = if CONFIG.replicaof.is_none() {
+                let res = if CONFIG.replication.replicaof.is_none() {
                     format!(
                         "role:master\r\nmaster_replid:{}\r\nmaster_repl_offset:{}\r\n",
-                        CONFIG.replid, CONFIG.repl_offset
+                        CONFIG.replication.replid,
+                        ACK_OFFSET.load(std::sync::atomic::Ordering::SeqCst)
                     )
                 } else {
                     format!(
                         "role:slave\r\nmaster_replid:{}\r\nmaster_repl_offset:{}\r\n",
-                        CONFIG.replid, CONFIG.repl_offset
+                        CONFIG.replication.replid,
+                        ACK_OFFSET.load(std::sync::atomic::Ordering::SeqCst)
                     )
                 };
                 Ok(Some(Frame::Bulk(res.into())))
@@ -160,14 +145,21 @@ impl CmdExecutor for Info {
 }
 
 // 该命令用于在后台异步保存当前数据库的数据到磁盘
-struct BgSave;
+pub struct BgSave;
 
 #[async_trait::async_trait]
 impl CmdExecutor for BgSave {
-    async fn master_execute(&self, _db: &Db) -> Result<Option<Frame>> {
-        tokio::spawn(async {
-            // TODO:
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+        let db = db.inner.read().await.clone();
+        std::thread::spawn(|| match util::rdb_save(db) {
+            Ok(_) => tracing::info!("RDB file generated successfully!!!"),
+            Err(e) => tracing::error!("Failed to save RDB file: {:?}", e),
         });
-        Ok(None)
+
+        Ok(Some(Frame::Simple(
+            "Background saving scheduled".to_string(),
+        )))
     }
 }
+
+// pub struct BgRewriteAof;

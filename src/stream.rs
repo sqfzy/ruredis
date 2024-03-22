@@ -12,7 +12,7 @@ use tokio::{
 };
 use tracing::{debug, error};
 
-#[async_trait::async_trait]
+// #[async_trait::async_trait]
 pub trait FrameHandler {
     async fn read_frame(&mut self) -> Result<Option<Frame>>;
     async fn write_frame(&mut self, frame: Frame) -> Result<()>;
@@ -21,7 +21,7 @@ pub trait FrameHandler {
     async fn read_line_exact(&mut self, n: usize) -> Result<Bytes>;
 }
 
-#[async_trait::async_trait]
+// #[async_trait::async_trait]
 impl FrameHandler for TcpStream {
     async fn read_frame(&mut self) -> Result<Option<Frame>> {
         let mut prefix = [0u8; 1];
@@ -191,3 +191,8 @@ async fn write_value(stream: &mut TcpStream, frame: Frame) -> Result<()> {
 
     Ok(())
 }
+
+// TODO: 
+// impl FrameHandler for  {
+//     
+// }

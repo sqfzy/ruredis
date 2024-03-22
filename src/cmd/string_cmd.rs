@@ -1,12 +1,8 @@
 use super::CmdExecutor;
-use crate::{
-    config::{ACKOFFSET, CONFIG},
-    db::Db,
-    frame::Frame,
-};
+use crate::{conf::CONFIG, db::Db, frame::Frame};
 use anyhow::Result;
 use bytes::Bytes;
-use std::{sync::atomic::Ordering, time::Duration};
+use std::time::Duration;
 use tokio::sync::broadcast::Sender;
 use tracing::debug;
 
@@ -20,11 +16,15 @@ pub struct Get {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Get {
-    async fn master_execute(&self, db: &Db) -> Result<Option<Frame>> {
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'GET'");
-        let frame = match db.inner.write().await.string_db.get(self.key.clone()) {
+        let frame = match db.inner.write().await.string_kvs.get(self.key.clone()) {
             Some(value) => Frame::Bulk(value),
-            None => Frame::Null,
+            // 键不存在，或已过期
+            None => {
+                //
+                Frame::Null
+            }
         };
         Ok(Some(frame))
     }
@@ -39,12 +39,12 @@ pub struct Set {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Set {
-    async fn master_execute(&self, db: &Db) -> Result<Option<Frame>> {
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'SET'");
         db.inner
             .write()
             .await
-            .string_db
+            .string_kvs
             .set(self.key.clone(), self.value.clone(), self.expire);
         Ok(Some(Frame::Simple("OK".to_string())))
     }
@@ -52,14 +52,13 @@ impl CmdExecutor for Set {
     async fn hook(
         &self,
         _stream: &mut tokio::net::TcpStream,
-        _db: &Db,
-        propagate_tx: &Sender<Frame>,
+        _replacate_msg_sender: &Sender<Frame>,
+        write_cmd_sender: &Sender<Frame>,
         frame: Frame,
     ) -> anyhow::Result<()> {
-        ACKOFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
-        // 如果配置了主从复制，则将命令发送给所有从服务器
-        if CONFIG.replicaof.is_none() {
-            propagate_tx.send(frame)?;
+        // 如果该节点是主节点，则向其它节点广播
+        if CONFIG.replication.replicaof.is_none() {
+            write_cmd_sender.send(frame)?;
         }
         Ok(())
     }

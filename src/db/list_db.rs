@@ -1,10 +1,11 @@
+#![allow(dead_code)]
+
 use super::ObjValueCODEC;
 use bytes::Bytes;
 use std::{
     collections::{HashMap, VecDeque},
     time::{Duration, Instant},
 };
-use tokio::sync::RwLock;
 
 #[derive(Debug)]
 pub struct ListDb(HashMap<String, ListObj>);
