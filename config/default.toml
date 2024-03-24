@@ -2,8 +2,14 @@
 port = 6379                       # 服务器端口
 expire_check_interval_secs = 1000 # 检查过期键的频率
 
+[security]
+# requirepass = "passwd" # 主服务器密码。当设置该值之后，客户端连接到服务器时需要发送AUTH命令进行认证
+
+
 [replication]
-max_replicate = 10 # 最多允许多少个从服务器连接到当前服务器
+replicaof = "127.0.0.1:6380" # 主服务器地址
+max_replicate = 10           # 最多允许多少个从服务器连接到当前服务器
+# masterauth = "passwd" # 主服务器密码。设置该值之后，当从服务器连接到主服务器时会发送该值 
 
 [rdb]
 enable = true          # 是否开启RDB持久化
@@ -12,6 +18,6 @@ version = 1            # RDB版本
 enable_checksum = true # 是否开启RDB校验和
 
 [aof]
-enable = true                # 是否开启AOF持久化
+enable = false               # 是否开启AOF持久化
 file_path = "appendonly.aof" # AOF文件路径
 append_fsync = "everysec"    # AOF同步频率。可能为：always | everysec | no

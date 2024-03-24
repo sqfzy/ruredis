@@ -3,6 +3,8 @@
 /// 2. 如果提供了配置文件，读取配置文件并更新
 /// 3. 如果命令行参数有 --server.addr 之类的配置项，merge 该配置
 /// 4. 如果环境变量有 SERVER_ADDR 之类配置，进行 merge
+mod serialize;
+
 use crate::{
     cli::Cli,
     db::{Db, DbInner},
@@ -10,26 +12,38 @@ use crate::{
     replicaof::enable_replicaof,
     util,
 };
+use bytes::Bytes;
 use clap::Parser;
+use crossbeam::{atomic::AtomicCell, queue::ArrayQueue, sync::ShardedLock};
 use rand::Rng;
-use std::sync::{atomic::AtomicU64, Arc};
+use serde_with::serde_as;
+use std::{
+    collections::VecDeque,
+    fmt::Display,
+    sync::{atomic::AtomicU64, Arc},
+};
 use tokio::{
     select,
-    sync::{broadcast::Sender, RwLock, RwLockWriteGuard},
+    sync::{broadcast::Sender, Mutex, RwLockWriteGuard},
 };
 
 pub static CONFIG: once_cell::sync::Lazy<Arc<Conf>> =
     once_cell::sync::Lazy::new(|| Arc::new(Conf::new()));
-pub static ACK_OFFSET: AtomicU64 = AtomicU64::new(0);
 
-// 缓存最近master发送给replication的命令
-static COMMANDBUF: once_cell::sync::Lazy<Arc<RwLock<[u8; 2048]>>> =
-    once_cell::sync::Lazy::new(|| Arc::new(RwLock::new([0; 2048])));
+/// 用于记录当前服务器的复制偏移量。当从服务器发送 PSYNC
+/// 命令给主服务器时，比较从服务器和主服务器的ACK_OFFSET，从而判断主从是否一致。
+pub static OFFSET: AtomicU64 = AtomicU64::new(0);
+
+/// 缓存最近master发送给replicate的命令
+pub static REPLI_BACKLOG: once_cell::sync::Lazy<util::RepliBackLog> =
+    once_cell::sync::Lazy::new(|| util::RepliBackLog::new(1024));
 
 #[derive(Debug, serde::Deserialize)]
 pub struct Conf {
     #[serde(rename = "server")]
     pub server: ServerConf,
+    #[serde(rename = "security")]
+    pub security: SecurityConf,
     #[serde(rename = "replication")]
     pub replication: ReplicationConf,
     #[serde(rename = "rdb")]
@@ -45,11 +59,16 @@ pub struct ServerConf {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct SecurityConf {
+    pub requirepass: Option<String>, // 访问密码
+}
+
+#[derive(Debug)]
 pub struct ReplicationConf {
-    pub replicaof: Option<String>, // 主服务器的地址
-    #[serde(skip)]
-    pub replid: String, // 服务器的运行ID。由40个随机字符组成
-    pub max_replicate: u64,        // 最多允许多少个从服务器连接到当前服务器
+    pub replicaof: Option<ShardedLock<String>>, // 主服务器的地址
+    pub replid: String,                         // 服务器的运行ID。由40个随机字符组成
+    pub max_replicate: u64,                     // 最多允许多少个从服务器连接到当前服务器
+    pub masterauth: Option<String>, // 主服务器密码，设置该值之后，当从服务器连接到主服务器时会发送该值
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -88,13 +107,16 @@ impl Conf {
             config::FileFormat::Toml,
         ));
 
+        // TODO: 改进加载的方式，不然每次修改cli都需要修改这里
         // 3. 从命令行中加载配置
         let cli = Cli::parse();
         let config_builder = config_builder
-            .set_override_option("replicaof", cli.replicaof)
+            .set_override_option("replication.replicaof", cli.replicaof)
             .expect("Failed to set replicaof")
-            .set_override_option("port", cli.port)
-            .expect("Failed to set port");
+            .set_override_option("server.port", cli.port)
+            .expect("Failed to set port")
+            .set_override_option("rdb.file_path", cli.rdb_path)
+            .expect("Failed to set rdb file path");
 
         // 4. 运行时配置
         let replid: String = rand::thread_rng()
@@ -104,7 +126,7 @@ impl Conf {
             .collect(); // 直接收集到String中
 
         config_builder
-            .set_override("replid", replid)
+            .set_override("replication.replid", replid)
             .expect("Failed to set replid")
             .build()
             .expect("Failed to load config")
@@ -119,12 +141,19 @@ impl Conf {
         others_to_psync_sender: Sender<Frame>,
     ) {
         if let Some(master_addr) = &self.replication.replicaof {
-            enable_replicaof(
-                master_addr.clone(),
-                db,
-                psync_to_others_sender,
-                others_to_psync_sender,
-            );
+            let master_addr = master_addr
+                .read()
+                .expect("Failed to read master_addr")
+                .clone();
+            tokio::spawn(async move {
+                enable_replicaof(
+                    master_addr,
+                    db,
+                    psync_to_others_sender,
+                    others_to_psync_sender,
+                )
+                .await;
+            });
         }
     }
 
@@ -189,30 +218,28 @@ impl Conf {
                 });
             }
             AppendFSync::EverySec => {
-                std::thread::spawn(move || {
-                    tokio::runtime::Runtime::new().unwrap().block_on(async {
-                        loop {
-                            select! {
-                                // 每次事件循环，将buffer中的内容写入AOF文件
-                                _ = finished_notify.notified() => {
-                                    if let Err(e) = aof.write_in().await {
-                                        tracing::error!("Failed to write AOF file: {:?}", e);
-                                    }
+                tokio::spawn(async move {
+                    loop {
+                        select! {
+                            // 每次事件循环，将buffer中的内容写入AOF文件
+                            _ = finished_notify.notified() => {
+                                if let Err(e) = aof.write_in().await {
+                                    tracing::error!("Failed to write AOF file: {:?}", e);
                                 }
-                                // 每过一秒，同步AOF文件
-                                _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {
-                                    if let Err(e) = aof.fsync().await {
-                                        tracing::error!("Failed to fsync AOF file: {:?}", e);
-                                    }
+                            }
+                            // 每过一秒，同步AOF文件
+                            _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {
+                                if let Err(e) = aof.fsync().await {
+                                    tracing::error!("Failed to fsync AOF file: {:?}", e);
                                 }
-                                cmd = aof.write_cmd_receiver.recv() => {
-                                    if let Ok(cmd) = cmd {
-                                        aof.append(&format!("{}\n", cmd));
-                                    }
+                            }
+                            cmd = aof.write_cmd_receiver.recv() => {
+                                if let Ok(cmd) = cmd {
+                                    aof.append(&format!("{}\n", cmd));
                                 }
                             }
                         }
-                    });
+                    }
                 });
             }
             AppendFSync::No => {

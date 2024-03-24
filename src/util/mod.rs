@@ -1,5 +1,6 @@
 mod aof;
 mod rdb;
+mod repl_log;
 
 use crate::db::Db;
 use anyhow::{anyhow, Result};
@@ -12,6 +13,7 @@ use tokio::{
 
 pub use aof::*;
 pub use rdb::*;
+pub use repl_log::*;
 
 // 测试客户端，向服务端发送指定命令
 #[allow(dead_code)]
@@ -42,9 +44,9 @@ pub fn bytes_to_string(bytes: Bytes) -> Result<String> {
 
 pub fn bytes_to_u64(bytes: Bytes) -> Result<u64> {
     String::from_utf8(bytes.into())
-        .map_err(|_| anyhow!("ERR syntax error"))?
+        .map_err(|_| anyhow!("bytes to u64 failed"))?
         .parse::<u64>()
-        .map_err(|_| anyhow!("ERR syntax error"))
+        .map_err(|_| anyhow!("bytes to u64 failed"))
 }
 
 pub async fn check_expiration_periodical(period: Duration, db: &Db) {

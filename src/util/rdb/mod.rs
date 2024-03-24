@@ -7,7 +7,7 @@ pub use rdb_load::rdb_load;
 pub use rdb_save::rdb_save;
 
 const EOF: u8 = 0xff;
-// const SELECTDB: u8 = 0xfe; // 不启用，因为只有一个db
+const SELECTDB: u8 = 0xfe; // 只允许一个数据库
 const EXPIRETIME: u8 = 0xfd;
 const EXPIRETIME_MS: u8 = 0xfc;
 const RESIZEDB: u8 = 0xfb;

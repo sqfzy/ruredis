@@ -20,11 +20,13 @@ pub fn rdb_load(db: &mut RwLockWriteGuard<DbInner>) -> anyhow::Result<()> {
     println!("{:?}", buf);
 
     let mut cursor = Cursor::new(buf);
-    let mut magic = [0; 7];
+    let mut magic = [0; 5];
     cursor.read_exact(&mut magic)?;
-    if magic != b"RUREDIS"[..] {
+    if magic != b"REDIS"[..] {
         anyhow::bail!("Failed to load RDB file: magic string should be RUREDIS, but got {magic:?}");
     }
+    let _rdb_version = cursor.get_u32();
+    cursor.advance(5);
 
     let len = cursor.get_ref().len();
     while cursor.get_ref()[cursor.position() as usize] != EOF {

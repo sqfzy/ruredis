@@ -54,7 +54,26 @@ impl Frame {
                 }
                 _ => return Ok(Box::<cmd::Replconf>::default()),
             },
-            "psync" => return Ok(Box::new(cmd::Psync)),
+            "psync" => {
+                if let Some(replid) = bulks.get(1) {
+                    // 如果replid为"?"，则表示replicate请求master进行全量同步
+                    if replid == &Bytes::from_static(b"?") {
+                        return Ok(Box::new(cmd::Psync {
+                            replid: None,
+                            repli_offset: 0,
+                        }));
+                    }
+                    // 如果replid为40个随机字符，则表示master请求slave进行增量同步
+                    let replid = bytes_to_string(replid.clone())?;
+                    if let Some(offset) = bulks.get(2) {
+                        let offset = bytes_to_u64(offset.clone())?;
+                        return Ok(Box::new(cmd::Psync {
+                            replid: Some(replid),
+                            repli_offset: offset,
+                        }));
+                    }
+                }
+            }
             "wait" => {
                 if let Some(numreplicas) = bulks.get(1) {
                     let numreplicas = bytes_to_u64(numreplicas.clone())?;
@@ -92,6 +111,10 @@ impl Frame {
                     + frames.len().to_string().len() as u64
             }
         }
+    }
+
+    pub fn to_bytes(&self) -> Bytes {
+        self.to_string().replace("\\r\\n", "\r\n").into()
     }
 }
 

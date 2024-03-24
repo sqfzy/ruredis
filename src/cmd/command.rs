@@ -1,6 +1,6 @@
 use super::CmdExecutor;
 use crate::{
-    conf::{ACK_OFFSET, CONFIG},
+    conf::{OFFSET, CONFIG},
     db::Db,
     frame::Frame,
     util,
@@ -127,13 +127,13 @@ impl CmdExecutor for Info {
                     format!(
                         "role:master\r\nmaster_replid:{}\r\nmaster_repl_offset:{}\r\n",
                         CONFIG.replication.replid,
-                        ACK_OFFSET.load(std::sync::atomic::Ordering::SeqCst)
+                        OFFSET.load(std::sync::atomic::Ordering::SeqCst)
                     )
                 } else {
                     format!(
                         "role:slave\r\nmaster_replid:{}\r\nmaster_repl_offset:{}\r\n",
                         CONFIG.replication.replid,
-                        ACK_OFFSET.load(std::sync::atomic::Ordering::SeqCst)
+                        OFFSET.load(std::sync::atomic::Ordering::SeqCst)
                     )
                 };
                 Ok(Some(Frame::Bulk(res.into())))

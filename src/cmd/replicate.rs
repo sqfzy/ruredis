@@ -2,15 +2,37 @@
 
 use super::CmdExecutor;
 use crate::{
-    conf::{ACK_OFFSET, CONFIG},
+    conf::{CONFIG, OFFSET, REPLI_BACKLOG},
     db::Db,
     frame::Frame,
     stream::FrameHandler,
-    util::bytes_to_u64,
+    util::{self, bytes_to_string, bytes_to_u64},
 };
 use anyhow::Result;
+use bytes::BufMut;
 use std::{sync::atomic::Ordering, time::Duration};
 use tokio::{io::AsyncWriteExt, sync::broadcast::Sender};
+
+pub struct Auth {
+    pub username: Option<String>,
+    pub password: String,
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for Auth {
+    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+        Ok(None)
+    }
+
+    async fn replicate_execute(&self, _db: &Db) -> anyhow::Result<Option<Frame>> {
+        if let Some(passwd) = &CONFIG.security.requirepass {
+            if self.password != *passwd {
+                return Ok(Some(Frame::Error("ERR invalid password".to_string())));
+            }
+        }
+        Ok(Some(Frame::Simple("OK".to_string())))
+    }
+}
 
 #[derive(Default)]
 pub enum Replconf {
@@ -31,7 +53,7 @@ impl CmdExecutor for Replconf {
             Replconf::GetAck => Frame::from(vec![
                 "REPLCONF".into(),
                 "ACK".into(),
-                ACK_OFFSET.load(Ordering::SeqCst).to_string().into(),
+                OFFSET.load(Ordering::SeqCst).to_string().into(),
             ]),
         };
         Ok(Some(res))
@@ -42,17 +64,19 @@ impl CmdExecutor for Replconf {
     }
 }
 
-// master收到该命令后开始同步数据
-// *2\r\n$5\r\npsync\r\n$1\r\n0\r\n
-pub struct Psync;
+///  master收到该命令后开始同步数据，例如：
+///  *2\r\n$5\r\npsync\r\n$1\r\n0\r\n
+pub struct Psync {
+    ///  从服务器的运行ID，如果为None则代表全量复制
+    pub replid: Option<String>,
+    ///  从服务器的复制偏移量
+    pub repli_offset: u64,
+}
 
 #[async_trait::async_trait]
 impl CmdExecutor for Psync {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
-        Ok(Some(Frame::Simple(format!(
-            "FULLRESYNC {} 0",
-            CONFIG.replication.replid
-        ))))
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+        Ok(None)
     }
 
     async fn hook(
@@ -60,22 +84,56 @@ impl CmdExecutor for Psync {
         stream: &mut tokio::net::TcpStream,
         replacate_msg_sender: &Sender<Frame>,
         write_cmd_sender: &Sender<Frame>,
+        db: &Db,
         _frame: Frame,
     ) -> anyhow::Result<()> {
-        // RDB is a snapshoot of datas
-        let empty_rdb = [
-            0x52, 0x45, 0x44, 0x49, 0x53, 0x30, 0x30, 0x31, 0x31, 0xfa, 0x09, 0x72, 0x65, 0x64,
-            0x69, 0x73, 0x2d, 0x76, 0x65, 0x72, 0x05, 0x37, 0x2e, 0x32, 0x2e, 0x30, 0xfa, 0x0a,
-            0x72, 0x65, 0x64, 0x69, 0x73, 0x2d, 0x62, 0x69, 0x74, 0x73, 0xc0, 0x40, 0xfa, 0x05,
-            0x63, 0x74, 0x69, 0x6d, 0x65, 0xc2, 0x6d, 0x08, 0xbc, 0x65, 0xfa, 0x08, 0x75, 0x73,
-            0x65, 0x64, 0x2d, 0x6d, 0x65, 0x6d, 0xc2, 0xb0, 0xc4, 0x10, 0x00, 0xfa, 0x08, 0x61,
-            0x6f, 0x66, 0x2d, 0x62, 0x61, 0x73, 0x65, 0xc0, 0x00, 0xff, 0xf0, 0x6e, 0x3b, 0xfe,
-            0xc0, 0xff, 0x5a, 0xa2,
-        ];
-        let buf = [b"$88\r\n", empty_rdb.as_ref()].concat();
-        // $<length_of_file>\r\n<contents_of_file>
-        stream.write_all(&buf).await?;
-        stream.flush().await?;
+        // TODO: Auth验证
+
+        let old_offset = OFFSET.load(Ordering::SeqCst);
+        stream
+            .write_frame(Frame::Simple(format!(
+                "FULLRESYNC {} {:?}",
+                CONFIG.replication.replid, old_offset
+            )))
+            .await?;
+
+        if let Some(replid) = &self.replid {
+            // 如果replid不为None，则进行增量复制
+
+            // 如果ack_offset - offset >
+        } else {
+            // 如果replid为None，则进行全量复制
+
+            // 保存rdb并发送给replicate
+            util::rdb_save(db.inner.read().await.clone())?;
+            let rdb = tokio::fs::read("dump.rdb").await?;
+            let mut buf = format!("${}\r\n", rdb.len()).into_bytes();
+            buf.extend(rdb);
+            // $<length_of_file>\r\n<contents_of_file>
+            stream.write_all(&buf).await?;
+            stream.flush().await?;
+
+            // 当生成rdb时，可能有新的命令写入，所以需要把新的命令发送给master
+            let len_should_send = OFFSET.load(Ordering::SeqCst) - old_offset;
+            if let Some(cmds_shoud_send) =
+                REPLI_BACKLOG.get_from_end(len_should_send as usize).await
+            {
+                stream.write_all(&cmds_shoud_send).await?;
+            } else {
+                tracing::error!("Failed to get cmds from end of backlog");
+            }
+        }
+
+        // let empty_rdb = [
+        //     0x52, 0x45, 0x44, 0x49, 0x53, 0x30, 0x30, 0x31, 0x31, 0xfa, 0x09, 0x72, 0x65, 0x64,
+        //     0x69, 0x73, 0x2d, 0x76, 0x65, 0x72, 0x05, 0x37, 0x2e, 0x32, 0x2e, 0x30, 0xfa, 0x0a,
+        //     0x72, 0x65, 0x64, 0x69, 0x73, 0x2d, 0x62, 0x69, 0x74, 0x73, 0xc0, 0x40, 0xfa, 0x05,
+        //     0x63, 0x74, 0x69, 0x6d, 0x65, 0xc2, 0x6d, 0x08, 0xbc, 0x65, 0xfa, 0x08, 0x75, 0x73,
+        //     0x65, 0x64, 0x2d, 0x6d, 0x65, 0x6d, 0xc2, 0xb0, 0xc4, 0x10, 0x00, 0xfa, 0x08, 0x61,
+        //     0x6f, 0x66, 0x2d, 0x62, 0x61, 0x73, 0x65, 0xc0, 0x00, 0xff, 0xf0, 0x6e, 0x3b, 0xfe,
+        //     0xc0, 0xff, 0x5a, 0xa2,
+        // ];
+        // let buf = [b"$88\r\n", empty_rdb.as_ref()].concat();
 
         let mut propagate_rx = write_cmd_sender.subscribe();
         // 对每个握手后的replication都进行持久化连接。
@@ -85,7 +143,13 @@ impl CmdExecutor for Psync {
             // 每当收到一个"write" command通知，则发送给所有的replication
             // "REPLCONF GETACK *", "SET <key> <value>", "DEL <key>", "EXPIRE <key> <seconds>"...
             let frame = propagate_rx.recv().await?;
+
+            // 记录发送给replicate的命令，不管replicate是否成功接收
+            REPLI_BACKLOG.force_append(frame.to_bytes()).await;
+            // 记录发送给replicate的字节数，不管replicate是否成功接收
+            OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
             tracing::info!("sending to replicate: {}", frame);
+
             stream.write_frame(frame.clone()).await?;
             stream.flush().await?;
 
@@ -107,8 +171,6 @@ impl CmdExecutor for Psync {
                     replacate_msg_sender.send(res)?;
                 }
             }
-            // 记录发送给replication的字节数
-            ACK_OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
         }
     }
 }
@@ -132,6 +194,7 @@ impl CmdExecutor for Wait {
         stream: &mut tokio::net::TcpStream,
         replacate_msg_sender: &Sender<Frame>,
         write_cmd_sender: &Sender<Frame>,
+        _db: &Db,
         _frame: Frame,
     ) -> anyhow::Result<()> {
         // 向Psync任务发送"REPLCONF GETACK *"，即向所有的replication连接发送"REPLCONF GETACK *"
@@ -144,7 +207,7 @@ impl CmdExecutor for Wait {
         // 接收Psync消息的接收者
         let mut recv_from_psync = replacate_msg_sender.subscribe();
         let mut ack_replicas = 0; // 同步的replication数量
-        let mut max_ack_offset = ACK_OFFSET.load(Ordering::SeqCst); // 最大的ack offset
+        let mut max_ack_offset = OFFSET.load(Ordering::SeqCst); // 最大的ack offset
 
         // remote: [your_program] 2024-03-11T10:48:38.205490Z DEBUG redis_starter_rust::stream: frames=[Bulk(b"WAIT"), Bulk(b"3"), Bulk(b"500")]
         // remote: [replication-17] Expected: '5' and actual: '0' messages don't match
@@ -177,7 +240,7 @@ impl CmdExecutor for Wait {
                 }
             }
         }
-        ACK_OFFSET.store(max_ack_offset, Ordering::SeqCst); // 更新ack offset
+        OFFSET.store(max_ack_offset, Ordering::SeqCst); // 更新ack offset
 
         // 返回同步的replication数量
         stream

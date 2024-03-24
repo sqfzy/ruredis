@@ -6,7 +6,7 @@ use crate::{
 use bytes::{BufMut, Bytes};
 use std::{io::Write, time::SystemTime};
 
-// RUREDIS kvpair* EOF checksum
+// REDIS  kvpair* EOF checksum
 // kvpair:
 // 1. EXPIRETIME_MS(252), ms(8B), TYPE(0~14), key(string), value(根据类型不同而不同)
 // 2. TYPE(0~14), key(string), value(根据类型不同而不同)
@@ -16,7 +16,10 @@ use std::{io::Write, time::SystemTime};
 
 pub fn rdb_save(db: DbInner) -> anyhow::Result<()> {
     let mut buf = Vec::with_capacity(1024);
-    buf.extend_from_slice(b"RUREDIS");
+    buf.extend_from_slice(b"REDIS");
+    buf.put_u32(1); // 版本号
+    buf.put_u8(SELECTDB); // 选择数据库
+    buf.put_u32(0); // 选择0号数据库
 
     // 保存string_kv{kvs_with_expire[ObjValue::Raw_nums expire len key len data ObjValue::Int_nums expire len key int8/int16/int32 data]}
     db.string_kvs.0.iter().for_each(|(k, obj)| {

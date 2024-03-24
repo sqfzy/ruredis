@@ -10,7 +10,6 @@ use tokio::{
 };
 use tracing::{debug, error};
 
-// TODO: 将master和replica的逻辑流分开
 pub async fn run() {
     // util::client_test("*3\r\n$5\r\nPSYNC\r\n$1\r\n?\r\n$2\r\n-1\r\n").await;
     // return;
@@ -117,6 +116,7 @@ async fn handle(
             stream,
             psync_to_others_sender,
             others_to_psync_sender,
+            db,
             frame,
         )
         .await?;

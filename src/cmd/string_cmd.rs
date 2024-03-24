@@ -1,7 +1,12 @@
 use super::CmdExecutor;
-use crate::{conf::CONFIG, db::Db, frame::Frame};
+use crate::{
+    conf::{CONFIG, REPLI_BACKLOG},
+    db::Db,
+    frame::Frame,
+};
 use anyhow::Result;
 use bytes::Bytes;
+use crossbeam::queue::ArrayQueue;
 use std::time::Duration;
 use tokio::sync::broadcast::Sender;
 use tracing::debug;
@@ -54,6 +59,7 @@ impl CmdExecutor for Set {
         _stream: &mut tokio::net::TcpStream,
         _replacate_msg_sender: &Sender<Frame>,
         write_cmd_sender: &Sender<Frame>,
+        _db: &Db,
         frame: Frame,
     ) -> anyhow::Result<()> {
         // 如果该节点是主节点，则向其它节点广播

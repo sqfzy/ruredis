@@ -15,7 +15,7 @@ pub use string_cmd::*;
 pub trait CmdExecutor: Send + Sync {
     async fn execute(&self, db: &Db) -> anyhow::Result<Option<Frame>>;
 
-    // 默认情况下，replicate不需要返回响应给master
+    /// 默认情况下，replicate_execute与execute行为一致，但不会返回结果给客户端
     async fn replicate_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>> {
         let _ = self.execute(db).await;
         Ok(None)
@@ -26,7 +26,8 @@ pub trait CmdExecutor: Send + Sync {
         _stream: &mut tokio::net::TcpStream,
         _replacate_msg_sender: &Sender<Frame>,
         _write_cmd_sender: &Sender<Frame>,
-        _frame: Frame,
+        _db: &Db,
+        _cmd_from_client: Frame,
     ) -> anyhow::Result<()> {
         Ok(())
     }

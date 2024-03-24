@@ -1,2 +1,6 @@
 *3\r\n$3\r\nset\r\n$3\r\nkey\r\n$5\r\nvalue\r\n
 *3\r\n$3\r\nset\r\n$3\r\nkey\r\n$3\r\nvAA\r\n
+*3\r\n$3\r\nset\r\n$3\r\nkey\r\n$5\r\nvalue\r\n
+*3\r\n$3\r\nset\r\n$3\r\nkey\r\n$3\r\nvAA\r\n
+*3\r\n$3\r\nset\r\n$3\r\nfoo\r\n$3\r\nbar\r\n
+*3\r\n$3\r\nset\r\n$4\r\nfoo2\r\n$4\r\nbar2\r\n
