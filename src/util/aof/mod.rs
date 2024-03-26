@@ -1,6 +1,6 @@
 use std::{io::Write, time::Duration};
 
-use crate::{conf::CONFIG, frame::Frame};
+use crate::{conf::CONFIG, db::Db, frame::Frame};
 use bytes::BytesMut;
 use tokio::{fs::File, io::AsyncWriteExt, sync::broadcast::Receiver};
 
@@ -61,6 +61,14 @@ impl Aof {
             client.write_all(cmd.replace("\\r\\n", "\r\n").as_bytes())?;
         }
         client.shutdown(std::net::Shutdown::Both)?;
+        Ok(())
+    }
+
+    // TODO:
+    pub async fn rewrite(db: &Db) -> anyhow::Result<()> {
+        let db = db.inner.read().await.clone();
+        // 读取Db中的数据, 并写入到AOF文件中
+        super::rdb_save_in(db, &CONFIG.aof.file_path)?;
         Ok(())
     }
 }

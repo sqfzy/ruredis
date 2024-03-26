@@ -1,6 +1,5 @@
 use super::ReplicationConf;
 
-use crossbeam::atomic::AtomicCell;
 use crossbeam::sync::ShardedLock;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -14,12 +13,7 @@ impl Serialize for ReplicationConf {
     {
         let mut state = serializer.serialize_struct("ReplicationConf", 4)?;
         let replicaof = if let Some(replicaof) = &self.replicaof {
-            Some(
-                replicaof
-                    .read()
-                    .map_err(|e| serde::ser::Error::custom(e))?
-                    .clone(),
-            )
+            Some(replicaof.read().map_err(serde::ser::Error::custom)?.clone())
         } else {
             None
         };
@@ -39,8 +33,7 @@ impl<'de> Deserialize<'de> for ReplicationConf {
     where
         D: Deserializer<'de>,
     {
-        const FIELDS: &'static [&'static str] =
-            &["replicaof", "replid", "max_replicate", "masterauth"];
+        const FIELDS: &[&str] = &["replicaof", "replid", "max_replicate", "masterauth"];
 
         impl<'de> serde::de::Visitor<'de> for ReplicationConfVisitor {
             type Value = ReplicationConf;

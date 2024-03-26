@@ -52,6 +52,12 @@ impl Frame {
                     return Ok(Box::new(cmd::Replconf::GetAck));
                     // }
                 }
+                b"ack" => {
+                    if let Some(offset) = bulks.get(2) {
+                        let offset = bytes_to_u64(offset.clone())?;
+                        return Ok(Box::new(cmd::Replconf::Ack(offset)));
+                    }
+                }
                 _ => return Ok(Box::<cmd::Replconf>::default()),
             },
             "psync" => {

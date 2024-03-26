@@ -5,6 +5,7 @@ use std::{
 };
 use tokio::sync::Mutex;
 
+#[derive(Debug)]
 pub struct RepliBackLog {
     pub buf: Arc<Mutex<VecDeque<u8>>>,
     pub capacity: AtomicU64,
@@ -40,9 +41,9 @@ impl RepliBackLog {
     // 从尾部获取n个字节
     pub async fn get_from_end(&self, n: usize) -> Option<Vec<u8>> {
         let buf = self.buf.lock().await;
-        println!("buf.len() = {}", buf.len());
         let mut res = Vec::new();
         for i in 0..n {
+            // 如果数据不足，返回None
             if buf.len() < i + 1 {
                 return None;
             }

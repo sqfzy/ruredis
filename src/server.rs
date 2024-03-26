@@ -1,5 +1,6 @@
-use crate::util;
-use crate::{conf::CONFIG, db::Db, frame::Frame, stream::FrameHandler};
+use crate::connection::Connection;
+use crate::{conf::CONFIG, db::Db, frame::Frame};
+use crate::{connection, util};
 use anyhow::Result;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -20,7 +21,7 @@ pub async fn run() {
     let (replacate_msg_sender, _replacate_msg_receiver) =
         channel(CONFIG.replication.max_replicate as usize * 2);
     // 创建一个广播通道，当有写命令时，写命令的协程可以向Psync协程以及有关aof的协程发送写命令
-    let (write_cmd_sender, _write_cmd_receiver) =
+    let (write_cmd_sender, write_cmd_receiver) =
         channel(CONFIG.replication.max_replicate as usize * 2);
 
     // 如果配置了主从复制，则启动一个异步任务，连接到主服务器
@@ -37,7 +38,7 @@ pub async fn run() {
         .await;
 
     // 如果配置了RDB持久化，则加载RDB文件。(当RDB和AOF同时开启时，只会加载AOF文件)
-    CONFIG.may_enable_rdb(&mut db.inner.write().await);
+    CONFIG.may_enable_rdb(&mut db.inner.write().await, write_cmd_receiver);
 
     // 开启一个异步任务，定时检查过期键
     util::check_expiration_periodical(
@@ -53,16 +54,17 @@ pub async fn run() {
 
     loop {
         match listener.accept().await {
-            Ok((mut stream, addr)) => {
+            Ok((stream, addr)) => {
                 debug!("accepted new connection from {addr}");
 
+                let mut conn = Connection::new(stream, addr.to_string());
                 let db = db.clone();
                 let replacate_msg_sender = replacate_msg_sender.clone();
                 let write_cmd_sender = write_cmd_sender.clone();
                 tokio::spawn(async move {
                     loop {
                         match handle(
-                            &mut stream,
+                            &mut conn,
                             &db,
                             &replacate_msg_sender,
                             &write_cmd_sender,
@@ -73,7 +75,7 @@ pub async fn run() {
                             // 处理命令出错，向客户端返回错误信息，并继续循环处理客户端的下一条命令
                             Err(e) => {
                                 tracing::error!("error: {}", e);
-                                let _ = stream.write_frame(Frame::Error(e.to_string())).await;
+                                let _ = conn.write_frame(Frame::Error(e.to_string())).await;
                             }
                             Ok(Some(())) => {} // 当前命令处理完毕，客户端还未关闭连接。继续循环处理客户端的下一条命令
                             Ok(None) => break, // 客户端关闭连接，退出循环
@@ -90,7 +92,7 @@ pub async fn run() {
 }
 
 async fn handle(
-    stream: &mut TcpStream,
+    conn: &mut Connection,
     db: &Db,
     psync_to_others_sender: &Sender<Frame>,
     others_to_psync_sender: &Sender<Frame>,
@@ -100,7 +102,7 @@ async fn handle(
     // return Ok(());
 
     // 读取命令为一个Frame
-    if let Some(frame) = stream.read_frame().await? {
+    if let Some(frame) = conn.read_frame().await? {
         tracing::info!("received from client: {}", frame);
 
         let cmd = frame.clone().parse_cmd()?; // 解析Frame为一个命令
@@ -108,12 +110,12 @@ async fn handle(
         // 执行命令，如果命令需要返回结果，则将结果写入stream
         if let Some(res) = cmd.execute(db).await? {
             tracing::info!("sending to client: {}", res);
-            stream.write_frame(res).await?;
+            conn.write_frame(res).await?;
         }
 
         // 执行命令钩子
         cmd.hook(
-            stream,
+            conn,
             psync_to_others_sender,
             others_to_psync_sender,
             db,

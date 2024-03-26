@@ -1,0 +1,2478 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 1876c86..56bbf8b 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -17,30 +17,6 @@ version = "1.0.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
+ 
+-[[package]]
+-name = "aho-corasick"
+-version = "0.5.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ca972c2ea5f742bfce5687b9aef75506a764f61d37f8f649047846a9686ddb66"
+-dependencies = [
+- "memchr 0.1.11",
+-]
+-
+-[[package]]
+-name = "android-tzdata"
+-version = "0.1.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
+-
+-[[package]]
+-name = "android_system_properties"
+-version = "0.1.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "819e7219dbd41043ac279b19830f2efc897156490d7fd6ea916720117ee66311"
+-dependencies = [
+- "libc",
+-]
+-
+ [[package]]
+ name = "anstream"
+ version = "0.6.13"
+@@ -95,6 +71,22 @@ version = "1.0.80"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "5ad32ce52e4161730f7098c077cd2ed6229b5804ccf99e5366be1ab72a98b4e1"
+ 
++[[package]]
++name = "assert_cmd"
++version = "2.0.14"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ed72493ac66d5804837f480ab3766c72bdfab91a65e565fc54fa9e42db0073a8"
++dependencies = [
++ "anstream",
++ "anstyle",
++ "bstr",
++ "doc-comment",
++ "predicates",
++ "predicates-core",
++ "predicates-tree",
++ "wait-timeout",
++]
++
+ [[package]]
+ name = "async-trait"
+ version = "0.1.77"
+@@ -133,15 +125,6 @@ version = "0.21.7"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
+ 
+-[[package]]
+-name = "bincode"
+-version = "1.3.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+-dependencies = [
+- "serde",
+-]
+-
+ [[package]]
+ name = "bitflags"
+ version = "1.3.2"
+@@ -167,16 +150,15 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "bumpalo"
+-version = "3.15.4"
++name = "bstr"
++version = "1.9.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7ff69b9dd49fd426c69a0db9fc04dd934cdb6645ff000864d98f7e2af8830eaa"
+-
+-[[package]]
+-name = "byteorder"
+-version = "0.5.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
++checksum = "05efc5cfd9110c8416e471df0e96702d58690178e206e61b7173706673c93706"
++dependencies = [
++ "memchr",
++ "regex-automata",
++ "serde",
++]
+ 
+ [[package]]
+ name = "bytes"
+@@ -196,19 +178,6 @@ version = "1.0.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+ 
+-[[package]]
+-name = "chrono"
+-version = "0.4.35"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8eaf5903dcbc0a39312feb77df2ff4c76387d591b9fc7b04a238dcf8bb62639a"
+-dependencies = [
+- "android-tzdata",
+- "iana-time-zone",
+- "num-traits",
+- "serde",
+- "windows-targets 0.52.4",
+-]
+-
+ [[package]]
+ name = "clap"
+ version = "4.5.2"
+@@ -228,7 +197,7 @@ dependencies = [
+  "anstream",
+  "anstyle",
+  "clap_lex",
+- "strsim 0.11.0",
++ "strsim",
+ ]
+ 
+ [[package]]
+@@ -255,6 +224,16 @@ version = "1.0.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
+ 
++[[package]]
++name = "combine"
++version = "4.6.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "35ed6e9d84f0b51a7f52daf1c7d71dd136fd7a3f41a8462b8cdb8c78d920fad4"
++dependencies = [
++ "bytes",
++ "memchr",
++]
++
+ [[package]]
+ name = "config"
+ version = "0.14.0"
+@@ -304,12 +283,6 @@ dependencies = [
+  "unicode-segmentation",
+ ]
+ 
+-[[package]]
+-name = "core-foundation-sys"
+-version = "0.8.6"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
+-
+ [[package]]
+ name = "cpufeatures"
+ version = "0.2.12"
+@@ -406,41 +379,6 @@ dependencies = [
+  "typenum",
+ ]
+ 
+-[[package]]
+-name = "darling"
+-version = "0.20.8"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "54e36fcd13ed84ffdfda6f5be89b31287cbb80c439841fe69e04841435464391"
+-dependencies = [
+- "darling_core",
+- "darling_macro",
+-]
+-
+-[[package]]
+-name = "darling_core"
+-version = "0.20.8"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "9c2cf1c23a687a1feeb728783b993c4e1ad83d99f351801977dd809b48d0a70f"
+-dependencies = [
+- "fnv",
+- "ident_case",
+- "proc-macro2",
+- "quote",
+- "strsim 0.10.0",
+- "syn",
+-]
+-
+-[[package]]
+-name = "darling_macro"
+-version = "0.20.8"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a668eda54683121533a393014d8692171709ff57a7d61f187b6e782719f8933f"
+-dependencies = [
+- "darling_core",
+- "quote",
+- "syn",
+-]
+-
+ [[package]]
+ name = "dashmap"
+ version = "5.5.3"
+@@ -455,14 +393,10 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "deranged"
+-version = "0.3.11"
++name = "difflib"
++version = "0.4.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
+-dependencies = [
+- "powerfmt",
+- "serde",
+-]
++checksum = "6184e33543162437515c2e2b48714794e37845ec9851711914eec9d308f6ebe8"
+ 
+ [[package]]
+ name = "digest"
+@@ -483,6 +417,12 @@ dependencies = [
+  "const-random",
+ ]
+ 
++[[package]]
++name = "doc-comment"
++version = "0.3.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
++
+ [[package]]
+ name = "equivalent"
+ version = "1.0.1"
+@@ -490,10 +430,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
+ 
+ [[package]]
+-name = "fnv"
+-version = "1.0.7"
++name = "form_urlencoded"
++version = "1.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
++checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
++dependencies = [
++ "percent-encoding",
++]
+ 
+ [[package]]
+ name = "generic-array"
+@@ -505,15 +448,6 @@ dependencies = [
+  "version_check",
+ ]
+ 
+-[[package]]
+-name = "getopts"
+-version = "0.2.21"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "14dbbfd5c71d70241ecf9e6f13737f7b5ce823821063188d7e46c41d371eebd5"
+-dependencies = [
+- "unicode-width",
+-]
+-
+ [[package]]
+ name = "getrandom"
+ version = "0.2.12"
+@@ -531,12 +465,6 @@ version = "0.28.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
+ 
+-[[package]]
+-name = "hashbrown"
+-version = "0.12.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
+-
+ [[package]]
+ name = "hashbrown"
+ version = "0.13.2"
+@@ -562,49 +490,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
+ 
+ [[package]]
+-name = "hex"
+-version = "0.4.3"
++name = "idna"
++version = "0.5.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+-
+-[[package]]
+-name = "iana-time-zone"
+-version = "0.1.60"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e7ffbb5a1b541ea2561f8c41c087286cc091e21e556a4f09a8f6cbf17b69b141"
++checksum = "634d9b1461af396cad843f47fdba5597a4f9e6ddd4bfb6ff5d85028c25cb12f6"
+ dependencies = [
+- "android_system_properties",
+- "core-foundation-sys",
+- "iana-time-zone-haiku",
+- "js-sys",
+- "wasm-bindgen",
+- "windows-core",
+-]
+-
+-[[package]]
+-name = "iana-time-zone-haiku"
+-version = "0.1.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
+-dependencies = [
+- "cc",
+-]
+-
+-[[package]]
+-name = "ident_case"
+-version = "1.0.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+-
+-[[package]]
+-name = "indexmap"
+-version = "1.9.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
+-dependencies = [
+- "autocfg",
+- "hashbrown 0.12.3",
+- "serde",
++ "unicode-bidi",
++ "unicode-normalization",
+ ]
+ 
+ [[package]]
+@@ -615,7 +507,6 @@ checksum = "7b0b929d511467233429c45a44ac1dcaa21ba0f5ba11e4879e6ed28ddb4f9df4"
+ dependencies = [
+  "equivalent",
+  "hashbrown 0.14.3",
+- "serde",
+ ]
+ 
+ [[package]]
+@@ -624,15 +515,6 @@ version = "1.0.10"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "b1a46d1a171d865aa5f83f92695765caa047a9b4cbae2cbf37dbd613a793fd4c"
+ 
+-[[package]]
+-name = "js-sys"
+-version = "0.3.69"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "29c15563dc2726973df627357ce0c9ddddbea194836909d655df6a75d2cf296d"
+-dependencies = [
+- "wasm-bindgen",
+-]
+-
+ [[package]]
+ name = "json5"
+ version = "0.4.1"
+@@ -644,16 +526,6 @@ dependencies = [
+  "serde",
+ ]
+ 
+-[[package]]
+-name = "kernel32-sys"
+-version = "0.2.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
+-dependencies = [
+- "winapi 0.2.8",
+- "winapi-build",
+-]
+-
+ [[package]]
+ name = "lazy_static"
+ version = "1.4.0"
+@@ -688,21 +560,6 @@ version = "0.4.21"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
+ 
+-[[package]]
+-name = "lzf"
+-version = "0.3.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "1f9674f6652083228a33cf3e8a7b5d47880c40bb9f8e86c18e89b594119e5a83"
+-
+-[[package]]
+-name = "memchr"
+-version = "0.1.11"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d8b629fb514376c675b98c1421e80b151d3817ac42d7c667717d282761418d20"
+-dependencies = [
+- "libc",
+-]
+-
+ [[package]]
+ name = "memchr"
+ version = "2.7.1"
+@@ -741,7 +598,7 @@ version = "7.1.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
+ dependencies = [
+- "memchr 2.7.1",
++ "memchr",
+  "minimal-lexical",
+ ]
+ 
+@@ -752,22 +609,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
+ dependencies = [
+  "overload",
+- "winapi 0.3.9",
+-]
+-
+-[[package]]
+-name = "num-conv"
+-version = "0.1.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+-
+-[[package]]
+-name = "num-traits"
+-version = "0.2.18"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "da0df0e5185db44f69b44f26786fe401b6c293d1907744beaa7fa62b2e5a517a"
+-dependencies = [
+- "autocfg",
++ "winapi",
+ ]
+ 
+ [[package]]
+@@ -786,7 +628,7 @@ version = "0.32.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a6a622008b6e321afc04970976f62ee297fdbaa6f95318ca343e3eebb9648441"
+ dependencies = [
+- "memchr 2.7.1",
++ "memchr",
+ ]
+ 
+ [[package]]
+@@ -840,13 +682,19 @@ version = "0.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
+ 
++[[package]]
++name = "percent-encoding"
++version = "2.3.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
++
+ [[package]]
+ name = "pest"
+ version = "2.7.8"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "56f8023d0fb78c8e03784ea1c7f3fa36e68a723138990b8d5a47d916b651e7a8"
+ dependencies = [
+- "memchr 2.7.1",
++ "memchr",
+  "thiserror",
+  "ucd-trie",
+ ]
+@@ -891,18 +739,39 @@ version = "0.2.13"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "8afb450f006bf6385ca15ef45d71d2288452bc3683ce2e2cacc0d18e4be60b58"
+ 
+-[[package]]
+-name = "powerfmt"
+-version = "0.2.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
+-
+ [[package]]
+ name = "ppv-lite86"
+ version = "0.2.17"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+ 
++[[package]]
++name = "predicates"
++version = "3.1.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "68b87bfd4605926cdfefc1c3b5f8fe560e3feca9d5552cf68c466d3d8236c7e8"
++dependencies = [
++ "anstyle",
++ "difflib",
++ "predicates-core",
++]
++
++[[package]]
++name = "predicates-core"
++version = "1.0.6"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b794032607612e7abeb4db69adb4e33590fa6cf1149e95fd7cb00e634b92f174"
++
++[[package]]
++name = "predicates-tree"
++version = "1.0.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "368ba315fb8c5052ab692e68a0eefec6ec57b23a36959c14496f0b0df2c0cecf"
++dependencies = [
++ "predicates-core",
++ "termtree",
++]
++
+ [[package]]
+ name = "proc-macro2"
+ version = "1.0.78"
+@@ -952,16 +821,18 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "rdb"
+-version = "0.2.1"
++name = "redis"
++version = "0.25.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "fc0c9ea968029d59b09ad2b48c455d1ce05a71703ce2b492273e89cd57116f54"
++checksum = "71d64e978fd98a0e6b105d066ba4889a7301fca65aeac850a877d8797343feeb"
+ dependencies = [
+- "byteorder",
+- "getopts",
+- "lzf",
+- "regex",
+- "rustc-serialize",
++ "combine",
++ "itoa",
++ "percent-encoding",
++ "ryu",
++ "sha1_smol",
++ "socket2",
++ "url",
+ ]
+ 
+ [[package]]
+@@ -974,23 +845,10 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "regex"
+-version = "0.1.80"
++name = "regex-automata"
++version = "0.4.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "4fd4ace6a8cf7860714a2c2280d6c1f7e6a413486c13298bbc86fd3da019402f"
+-dependencies = [
+- "aho-corasick",
+- "memchr 0.1.11",
+- "regex-syntax",
+- "thread_local 0.2.7",
+- "utf8-ranges",
+-]
+-
+-[[package]]
+-name = "regex-syntax"
+-version = "0.3.9"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f9ec002c35e86791825ed294b50008eea9ddfc8def4420124fbc6b08db834957"
++checksum = "86b83b8b9847f9bf95ef68afb0b8e6cdb80f498442f5179a29fad448fcc1eaea"
+ 
+ [[package]]
+ name = "ron"
+@@ -1020,30 +878,24 @@ version = "0.1.23"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
+ 
+-[[package]]
+-name = "rustc-serialize"
+-version = "0.3.25"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "fe834bc780604f4674073badbad26d7219cadfb4a2275802db12cbae17498401"
+-
+ [[package]]
+ name = "rutinose"
+ version = "0.1.0"
+ dependencies = [
+  "anyhow",
++ "assert_cmd",
+  "async-trait",
+- "bincode",
+  "bytes",
+  "clap",
+  "config",
+  "crc",
+  "crossbeam",
++ "crossbeam-utils",
+  "dashmap",
+  "once_cell",
+  "rand",
+- "rdb",
++ "redis",
+  "serde",
+- "serde_with",
+  "skiplist",
+  "tokio",
+  "tracing",
+@@ -1103,34 +955,10 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "serde_with"
+-version = "3.7.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ee80b0e361bbf88fd2f6e242ccd19cfda072cb0faa6ae694ecee08199938569a"
+-dependencies = [
+- "base64",
+- "chrono",
+- "hex",
+- "indexmap 1.9.3",
+- "indexmap 2.2.5",
+- "serde",
+- "serde_derive",
+- "serde_json",
+- "serde_with_macros",
+- "time",
+-]
+-
+-[[package]]
+-name = "serde_with_macros"
+-version = "3.7.0"
++name = "sha1_smol"
++version = "1.0.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6561dc161a9224638a31d876ccdfefbc1df91d3f3a8342eddb35f055d48c7655"
+-dependencies = [
+- "darling",
+- "proc-macro2",
+- "quote",
+- "syn",
+-]
++checksum = "ae1a47186c03a32177042e55dbc5fd5aee900b8e0069a8d70fba96a9375cd012"
+ 
+ [[package]]
+ name = "sha2"
+@@ -1186,12 +1014,6 @@ dependencies = [
+  "windows-sys 0.52.0",
+ ]
+ 
+-[[package]]
+-name = "strsim"
+-version = "0.10.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+-
+ [[package]]
+ name = "strsim"
+ version = "0.11.0"
+@@ -1209,6 +1031,12 @@ dependencies = [
+  "unicode-ident",
+ ]
+ 
++[[package]]
++name = "termtree"
++version = "0.4.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
++
+ [[package]]
+ name = "thiserror"
+ version = "1.0.57"
+@@ -1229,25 +1057,6 @@ dependencies = [
+  "syn",
+ ]
+ 
+-[[package]]
+-name = "thread-id"
+-version = "2.0.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a9539db560102d1cef46b8b78ce737ff0bb64e7e18d35b2a5688f7d097d0ff03"
+-dependencies = [
+- "kernel32-sys",
+- "libc",
+-]
+-
+-[[package]]
+-name = "thread_local"
+-version = "0.2.7"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8576dbbfcaef9641452d5cf0df9b0e7eeab7694956dd33bb61515fb8f18cfdd5"
+-dependencies = [
+- "thread-id",
+-]
+-
+ [[package]]
+ name = "thread_local"
+ version = "1.1.8"
+@@ -1259,44 +1068,28 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "time"
+-version = "0.3.34"
++name = "tiny-keccak"
++version = "2.0.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "c8248b6521bb14bc45b4067159b9b6ad792e2d6d754d6c41fb50e29fefe38749"
++checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+ dependencies = [
+- "deranged",
+- "itoa",
+- "num-conv",
+- "powerfmt",
+- "serde",
+- "time-core",
+- "time-macros",
++ "crunchy",
+ ]
+ 
+ [[package]]
+-name = "time-core"
+-version = "0.1.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ef927ca75afb808a4d64dd374f00a2adf8d0fcff8e7b184af886c3c87ec4a3f3"
+-
+-[[package]]
+-name = "time-macros"
+-version = "0.2.17"
++name = "tinyvec"
++version = "1.6.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7ba3a3ef41e6672a2f0f001392bb5dcd3ff0a9992d618ca761a11c3121547774"
++checksum = "87cc5ceb3875bb20c2890005a4e226a4651264a5c75edb2421b52861a0a0cb50"
+ dependencies = [
+- "num-conv",
+- "time-core",
++ "tinyvec_macros",
+ ]
+ 
+ [[package]]
+-name = "tiny-keccak"
+-version = "2.0.2"
++name = "tinyvec_macros"
++version = "0.1.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+-dependencies = [
+- "crunchy",
+-]
++checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+ 
+ [[package]]
+ name = "tokio"
+@@ -1355,7 +1148,7 @@ version = "0.22.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "2c1b5fd4128cc8d3e0cb74d4ed9a9cc7c7284becd4df68f5f940e1ad123606f6"
+ dependencies = [
+- "indexmap 2.2.5",
++ "indexmap",
+  "serde",
+  "serde_spanned",
+  "toml_datetime",
+@@ -1414,7 +1207,7 @@ dependencies = [
+  "nu-ansi-term",
+  "sharded-slab",
+  "smallvec",
+- "thread_local 1.1.8",
++ "thread_local",
+  "tracing-core",
+  "tracing-log",
+ ]
+@@ -1431,6 +1224,12 @@ version = "0.1.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
+ 
++[[package]]
++name = "unicode-bidi"
++version = "0.3.15"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "08f95100a766bf4f8f28f90d77e0a5461bbdb219042e7679bebe79004fed8d75"
++
+ [[package]]
+ name = "unicode-ident"
+ version = "1.0.12"
+@@ -1438,22 +1237,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
+ 
+ [[package]]
+-name = "unicode-segmentation"
+-version = "1.11.0"
++name = "unicode-normalization"
++version = "0.1.23"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
++checksum = "a56d1686db2308d901306f92a263857ef59ea39678a5458e7cb17f01415101f5"
++dependencies = [
++ "tinyvec",
++]
+ 
+ [[package]]
+-name = "unicode-width"
+-version = "0.1.11"
++name = "unicode-segmentation"
++version = "1.11.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e51733f11c9c4f72aa0c160008246859e340b00807569a0da0e7a1079b27ba85"
++checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
+ 
+ [[package]]
+-name = "utf8-ranges"
+-version = "0.1.3"
++name = "url"
++version = "2.5.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a1ca13c08c41c9c3e04224ed9ff80461d97e121589ff27c753a16cb10830ae0f"
++checksum = "31e6302e3bb753d46e83516cae55ae196fc0c309407cf11ab35cc51a4c2a4633"
++dependencies = [
++ "form_urlencoded",
++ "idna",
++ "percent-encoding",
++]
+ 
+ [[package]]
+ name = "utf8parse"
+@@ -1474,70 +1281,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+ 
+ [[package]]
+-name = "wasi"
+-version = "0.11.0+wasi-snapshot-preview1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
+-
+-[[package]]
+-name = "wasm-bindgen"
+-version = "0.2.92"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "4be2531df63900aeb2bca0daaaddec08491ee64ceecbee5076636a3b026795a8"
+-dependencies = [
+- "cfg-if",
+- "wasm-bindgen-macro",
+-]
+-
+-[[package]]
+-name = "wasm-bindgen-backend"
+-version = "0.2.92"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "614d787b966d3989fa7bb98a654e369c762374fd3213d212cfc0251257e747da"
+-dependencies = [
+- "bumpalo",
+- "log",
+- "once_cell",
+- "proc-macro2",
+- "quote",
+- "syn",
+- "wasm-bindgen-shared",
+-]
+-
+-[[package]]
+-name = "wasm-bindgen-macro"
+-version = "0.2.92"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a1f8823de937b71b9460c0c34e25f3da88250760bec0ebac694b49997550d726"
+-dependencies = [
+- "quote",
+- "wasm-bindgen-macro-support",
+-]
+-
+-[[package]]
+-name = "wasm-bindgen-macro-support"
+-version = "0.2.92"
++name = "wait-timeout"
++version = "0.2.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e94f17b526d0a461a191c78ea52bbce64071ed5c04c9ffe424dcb38f74171bb7"
++checksum = "9f200f5b12eb75f8c1ed65abd4b2db8a6e1b138a20de009dacee265a2498f3f6"
+ dependencies = [
+- "proc-macro2",
+- "quote",
+- "syn",
+- "wasm-bindgen-backend",
+- "wasm-bindgen-shared",
++ "libc",
+ ]
+ 
+ [[package]]
+-name = "wasm-bindgen-shared"
+-version = "0.2.92"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
+-
+-[[package]]
+-name = "winapi"
+-version = "0.2.8"
++name = "wasi"
++version = "0.11.0+wasi-snapshot-preview1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
++checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
+ 
+ [[package]]
+ name = "winapi"
+@@ -1549,12 +1305,6 @@ dependencies = [
+  "winapi-x86_64-pc-windows-gnu",
+ ]
+ 
+-[[package]]
+-name = "winapi-build"
+-version = "0.1.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
+-
+ [[package]]
+ name = "winapi-i686-pc-windows-gnu"
+ version = "0.4.0"
+@@ -1567,15 +1317,6 @@ version = "0.4.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+ 
+-[[package]]
+-name = "windows-core"
+-version = "0.52.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
+-dependencies = [
+- "windows-targets 0.52.4",
+-]
+-
+ [[package]]
+ name = "windows-sys"
+ version = "0.48.0"
+@@ -1714,7 +1455,7 @@ version = "0.6.5"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "dffa400e67ed5a4dd237983829e66475f0a4a26938c4b04c21baede6262215b8"
+ dependencies = [
+- "memchr 2.7.1",
++ "memchr",
+ ]
+ 
+ [[package]]
+diff --git a/Cargo.toml b/Cargo.toml
+index 6d2ba38..4019da0 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -17,11 +17,16 @@ once_cell = "1.19.0"
+ rand = "0.8.5"
+ skiplist = "0.5.1"
+ # thiserror = "1.0.32"                                # error handling
+-tokio = { version = "1.23.0", features = ["full"] }               # async networking
++tokio = { version = "1.23.0", features = ["full"] } # async networking
+ tracing = "0.1.40"
+ tracing-subscriber = "0.3.18"
+ serde = { version = "1.0", features = ["derive"] }
+-rdb = "0.2.1"
+-bincode = "1.3.3"
+-crossbeam = { version = "0.8.4", features = ["crossbeam-queue"] }
+-serde_with = "3.7.0"
++# rdb = "0.2.1"
++# bincode = "1.3.3"
++crossbeam = { version = "0.8.4", features = ["crossbeam-queue", "nightly"] }
++crossbeam-utils = "0.8.19"
++# serde_with = "3.7.0"
++
++[dev-dependencies]
++assert_cmd = { version = "2.0.14", features = ["color-auto"] }
++redis = "0.25"
+diff --git a/config/default.toml b/config/default.toml
+index ca0b2ca..17db56d 100644
+--- a/config/default.toml
++++ b/config/default.toml
+@@ -1,6 +1,7 @@
+ [server]
+ port = 6379                       # 服务器端口
+ expire_check_interval_secs = 1000 # 检查过期键的频率
++log_level = "debug"               # 日志级别
+ 
+ [security]
+ # requirepass = "passwd" # 主服务器密码。当设置该值之后，客户端连接到服务器时需要发送AUTH命令进行认证
+@@ -14,10 +15,15 @@ max_replicate = 10           # 最多允许多少个从服务器连接到当前
+ [rdb]
+ enable = true          # 是否开启RDB持久化
+ file_path = "dump.rdb" # RDB文件路径
+-version = 1            # RDB版本
+-enable_checksum = true # 是否开启RDB校验和
++
++# RDB持久化间隔。seconds表示间隔时间，changes表示键的变化次数。
++# 每seconds时间内有changes个键发生变化，则触发RDB快照
++interval = { seconds = 1, changes = 0 }
++version = 9                             # RDB版本
++enable_checksum = true                  # 是否开启RDB校验和
+ 
+ [aof]
+ enable = false               # 是否开启AOF持久化
++use_rdb_preamble = true      # 是否在AOF文件开头加入RDB版本信息
+ file_path = "appendonly.aof" # AOF文件路径
+ append_fsync = "everysec"    # AOF同步频率。可能为：always | everysec | no
+diff --git a/dump.rdb b/dump.rdb
+index f33ff98..7134fc5 100644
+Binary files a/dump.rdb and b/dump.rdb differ
+diff --git a/src/cmd/command.rs b/src/cmd/command.rs
+index db8aa8b..72011e8 100644
+--- a/src/cmd/command.rs
++++ b/src/cmd/command.rs
+@@ -1,12 +1,14 @@
+ use super::CmdExecutor;
+ use crate::{
+-    conf::{OFFSET, CONFIG},
++    conf::{CONFIG, OFFSET},
++    connection::Connection,
+     db::Db,
+     frame::Frame,
+     util,
+ };
+ use anyhow::{anyhow, Error, Result};
+ use bytes::Bytes;
++use tokio::sync::broadcast::Sender;
+ use tracing::debug;
+ 
+ // 当执行客户端redis-cli命令时，会执行该命令
+@@ -126,13 +128,13 @@ impl CmdExecutor for Info {
+                 let res = if CONFIG.replication.replicaof.is_none() {
+                     format!(
+                         "role:master\r\nmaster_replid:{}\r\nmaster_repl_offset:{}\r\n",
+-                        CONFIG.replication.replid,
++                        CONFIG.server.run_id,
+                         OFFSET.load(std::sync::atomic::Ordering::SeqCst)
+                     )
+                 } else {
+                     format!(
+                         "role:slave\r\nmaster_replid:{}\r\nmaster_repl_offset:{}\r\n",
+-                        CONFIG.replication.replid,
++                        CONFIG.server.run_id,
+                         OFFSET.load(std::sync::atomic::Ordering::SeqCst)
+                     )
+                 };
+@@ -163,3 +165,35 @@ impl CmdExecutor for BgSave {
+ }
+ 
+ // pub struct BgRewriteAof;
++
++pub struct Auth {
++    pub username: Option<String>,
++    pub password: String,
++}
++
++#[async_trait::async_trait]
++impl CmdExecutor for Auth {
++    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
++        Ok(None)
++    }
++
++    async fn hook(
++        &self,
++        conn: &mut Connection,
++        _replacate_msg_sender: &Sender<Frame>,
++        _write_cmd_sender: &Sender<Frame>,
++        _db: &Db,
++        _cmd_from_client: Frame,
++    ) -> anyhow::Result<()> {
++        if let Some(passwd) = &CONFIG.security.requirepass {
++            if &self.password != passwd {
++                conn.write_frame(Frame::Error("ERR invalid password".to_string()))
++                    .await?;
++                return Ok(());
++            }
++        }
++        conn.authed.store(true, std::sync::atomic::Ordering::SeqCst);
++        conn.write_frame(Frame::Simple("OK".to_string())).await?;
++        Ok(())
++    }
++}
+diff --git a/src/cmd/mod.rs b/src/cmd/mod.rs
+index 205c506..41d8c30 100644
+--- a/src/cmd/mod.rs
++++ b/src/cmd/mod.rs
+@@ -2,7 +2,7 @@ mod command;
+ mod replicate;
+ mod string_cmd;
+ 
+-use crate::{db::Db, frame::Frame};
++use crate::{connection::Connection, db::Db, frame::Frame};
+ use tokio::sync::broadcast::Sender;
+ 
+ pub use command::*;
+@@ -23,7 +23,7 @@ pub trait CmdExecutor: Send + Sync {
+ 
+     async fn hook(
+         &self,
+-        _stream: &mut tokio::net::TcpStream,
++        _conn: &mut Connection,
+         _replacate_msg_sender: &Sender<Frame>,
+         _write_cmd_sender: &Sender<Frame>,
+         _db: &Db,
+diff --git a/src/cmd/replicate.rs b/src/cmd/replicate.rs
+index ba99e50..2fd4a19 100644
+--- a/src/cmd/replicate.rs
++++ b/src/cmd/replicate.rs
+@@ -3,67 +3,95 @@
+ use super::CmdExecutor;
+ use crate::{
+     conf::{CONFIG, OFFSET, REPLI_BACKLOG},
++    connection::Connection,
+     db::Db,
+     frame::Frame,
+-    stream::FrameHandler,
+     util::{self, bytes_to_string, bytes_to_u64},
+ };
+ use anyhow::Result;
+-use bytes::BufMut;
++use bytes::Bytes;
+ use std::{sync::atomic::Ordering, time::Duration};
+-use tokio::{io::AsyncWriteExt, sync::broadcast::Sender};
++use tokio::sync::broadcast::{Receiver, Sender};
+ 
+-pub struct Auth {
+-    pub username: Option<String>,
+-    pub password: String,
++#[derive(Default)]
++pub enum Replconf {
++    #[default]
++    Default,
++    // replication收到该命令后发送自身的ack offset
++    // *3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$1\r\n*\r\n
++    GetAck,
++    // master收到该命令后，比较自身与repliacate的offset，如果不相同，则需要同步
++    Ack(u64),
+ }
+ 
+ #[async_trait::async_trait]
+-impl CmdExecutor for Auth {
++impl CmdExecutor for Replconf {
+     async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+         Ok(None)
+     }
+ 
+-    async fn replicate_execute(&self, _db: &Db) -> anyhow::Result<Option<Frame>> {
+-        if let Some(passwd) = &CONFIG.security.requirepass {
+-            if self.password != *passwd {
+-                return Ok(Some(Frame::Error("ERR invalid password".to_string())));
++    async fn hook(
++        &self,
++        conn: &mut Connection,
++        replacate_msg_sender: &Sender<Frame>,
++        write_cmd_sender: &Sender<Frame>,
++        db: &Db,
++        _frame: Frame,
++    ) -> anyhow::Result<()> {
++        match self {
++            Replconf::Default => conn.write_frame(Frame::Simple("OK".to_string())).await?,
++            Replconf::GetAck => {
++                conn.write_frame(Frame::from(vec![
++                    "REPLCONF".into(),
++                    "ACK".into(),
++                    OFFSET.load(Ordering::SeqCst).to_string().into(),
++                ]))
++                .await?;
++            }
++            Replconf::Ack(repli_offset) => {
++                let offset = OFFSET.load(Ordering::SeqCst);
++                let diff = offset - repli_offset;
++                if diff == 0 {
++                    return Ok(());
++                }
++
++                if let Some(cmds) = REPLI_BACKLOG.get_from_end(diff as usize).await {
++                    conn.write_all(&cmds).await?;
++                } else {
++                    // 如果缺失的命令数量大于backlog的容量，则进行全量复制
++                    perform_full_resync(conn, db, offset).await?;
++                }
+             }
+         }
+-        Ok(Some(Frame::Simple("OK".to_string())))
++        Ok(())
+     }
+ }
+ 
+-#[derive(Default)]
+-pub enum Replconf {
+-    #[default]
+-    Default,
+-    // replication收到该命令后发送自身的ack offset
+-    // *3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$1\r\n*\r\n
+-    GetAck,
++// TODO:
++struct Replicaof {
++    pub host: String,
++    pub port: u16,
+ }
+ 
+ #[async_trait::async_trait]
+-impl CmdExecutor for Replconf {
++impl CmdExecutor for Replicaof {
+     async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+-        // dbg!("respond1");
+-        let res = match self {
+-            Replconf::Default => Frame::Simple("OK".to_string()),
+-            // *3\r\n$8\r\nreplconf\r\n$6\r\nack\r\n$<len>\r\n<num>\r\n
+-            Replconf::GetAck => Frame::from(vec![
+-                "REPLCONF".into(),
+-                "ACK".into(),
+-                OFFSET.load(Ordering::SeqCst).to_string().into(),
+-            ]),
+-        };
+-        Ok(Some(res))
+-    }
+-
+-    async fn replicate_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>> {
+-        self.execute(db).await
++        Ok(None)
+     }
+ }
+ 
++// crate::replicaof::start_replicaof(
++//     format!(
++//         "{}:{}",
++//         bytes_to_string(host.clone())?,
++//         bytes_to_string(port.clone())?
++//     ),
++//     db,
++//     replacate_msg_sender.clone(),
++//     write_cmd_sender.clone(),
++// )
++// .await?
++
+ ///  master收到该命令后开始同步数据，例如：
+ ///  *2\r\n$5\r\npsync\r\n$1\r\n0\r\n
+ pub struct Psync {
+@@ -75,53 +103,43 @@ pub struct Psync {
+ 
+ #[async_trait::async_trait]
+ impl CmdExecutor for Psync {
+-    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
++    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+         Ok(None)
+     }
+ 
+     async fn hook(
+         &self,
+-        stream: &mut tokio::net::TcpStream,
+-        replacate_msg_sender: &Sender<Frame>,
++        conn: &mut Connection,
++        replicate_msg_sender: &Sender<Frame>,
+         write_cmd_sender: &Sender<Frame>,
+         db: &Db,
+         _frame: Frame,
+     ) -> anyhow::Result<()> {
+-        // TODO: Auth验证
++        // 如果设置了密码，但是没有认证，则返回错误
++        if CONFIG.security.requirepass.is_some() && !conn.authed.fetch_or(false, Ordering::SeqCst) {
++            conn.write_frame(Frame::Error("NOAUTH Authentication required.".to_string()))
++                .await?;
++            return Ok(());
++        }
+ 
+         let old_offset = OFFSET.load(Ordering::SeqCst);
+-        stream
+-            .write_frame(Frame::Simple(format!(
+-                "FULLRESYNC {} {:?}",
+-                CONFIG.replication.replid, old_offset
+-            )))
+-            .await?;
+ 
+-        if let Some(replid) = &self.replid {
++        if let Some(_replid) = self.replid.clone() {
+             // 如果replid不为None，则进行增量复制
++            conn.write_frame(Frame::Simple("CONTINUE".to_string()))
++                .await?;
+ 
+-            // 如果ack_offset - offset >
+-        } else {
+-            // 如果replid为None，则进行全量复制
++            let diff = OFFSET.load(Ordering::SeqCst) - self.repli_offset;
+ 
+-            // 保存rdb并发送给replicate
+-            util::rdb_save(db.inner.read().await.clone())?;
+-            let rdb = tokio::fs::read("dump.rdb").await?;
+-            let mut buf = format!("${}\r\n", rdb.len()).into_bytes();
+-            buf.extend(rdb);
+-            // $<length_of_file>\r\n<contents_of_file>
+-            stream.write_all(&buf).await?;
+-            stream.flush().await?;
+-
+-            // 当生成rdb时，可能有新的命令写入，所以需要把新的命令发送给master
+-            let len_should_send = OFFSET.load(Ordering::SeqCst) - old_offset;
+-            if let Some(cmds_shoud_send) =
+-                REPLI_BACKLOG.get_from_end(len_should_send as usize).await
+-            {
+-                stream.write_all(&cmds_shoud_send).await?;
++            if let Some(cmds) = REPLI_BACKLOG.get_from_end(diff as usize).await {
++                conn.write_all(&cmds).await?;
+             } else {
+-                tracing::error!("Failed to get cmds from end of backlog");
++                // 如果缺失的命令数量大于backlog的容量，则进行全量复制
++                perform_full_resync(conn, db, old_offset).await?;
+             }
++        } else {
++            // 如果replid为None，则进行全量复制
++            perform_full_resync(conn, db, old_offset).await?;
+         }
+ 
+         // let empty_rdb = [
+@@ -138,43 +156,91 @@ impl CmdExecutor for Psync {
+         let mut propagate_rx = write_cmd_sender.subscribe();
+         // 对每个握手后的replication都进行持久化连接。
+         loop {
+-            // TODO: 命令缓冲区
+-
+-            // 每当收到一个"write" command通知，则发送给所有的replication
+-            // "REPLCONF GETACK *", "SET <key> <value>", "DEL <key>", "EXPIRE <key> <seconds>"...
+-            let frame = propagate_rx.recv().await?;
+-
+-            // 记录发送给replicate的命令，不管replicate是否成功接收
+-            REPLI_BACKLOG.force_append(frame.to_bytes()).await;
+-            // 记录发送给replicate的字节数，不管replicate是否成功接收
+-            OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
+-            tracing::info!("sending to replicate: {}", frame);
+-
+-            stream.write_frame(frame.clone()).await?;
+-            stream.flush().await?;
+-
+-            // 如果向replication发送的命令是"REPLCONF GETACK *"
+-            if frame
+-                .to_string()
+-                .to_lowercase()
+-                .starts_with(r#"*3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$1\r\n*\r\n"#)
+-            {
+-                // *3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$<len>\r\n<num>\r\n
+-                // propagate_tx.send(Frame::from(vec![
+-                //     "replconf".into(),
+-                //     "ack".into(),
+-                //     "50".into(),
+-                // ]))?;
+-                // 把从replication接收到的数据发送到其它异步任务（Wait命令的异步任务）
+-                if let Some(res) = stream.read_frame().await? {
+-                    tracing::info!("received from replicate: {}", frame);
+-                    replacate_msg_sender.send(res)?;
++            tokio::select! {
++                // 传播写命令
++                frame = recv_write_command(&mut propagate_rx) => {
++                    let frame = frame?;
++
++                    println!("frame: {:?}", frame.clone());
++                    conn.write_frame(frame.clone()).await?;
++                    conn.flush().await?;
++
++                    if frame
++                        .to_string()
++                        .to_lowercase()
++                        .starts_with(r#"*3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$1\r\n*\r\n"#)
++                    {
++                        // 把从replication接收到的数据发送到其它异步任务（Wait命令的异步任务）
++                        if let Some(res) = conn.read_frame().await? {
++                            tracing::info!("received from replicate: {}", frame);
++                            replicate_msg_sender.send(res)?;
++                        }
++                    }
++                },
++                // 回复心跳检测
++                frame = conn.read_frame() => {
++                    if let Some(frame) = frame? {
++                        tracing::info!("received from replicate: {}", frame);
++                        let cmd = frame.clone().parse_cmd()?;
++                        if let Some(res) = cmd.execute(db).await? {
++                            tracing::info!("sending to replicate: {}", res);
++                            conn.write_frame(res).await?;
++                        }
++                        cmd.hook(conn, replicate_msg_sender, write_cmd_sender, db, frame).await?;
++                    } else {
++                        break;
++                    }
+                 }
+             }
+         }
++
++        Ok(())
+     }
+ }
+ 
++async fn recv_write_command(propagate_rx: &mut Receiver<Frame>) -> anyhow::Result<Frame> {
++    println!("debug1");
++    let frame = propagate_rx.recv().await?;
++    // 记录发送给replicate的命令，不管replicate是否成功接收
++    REPLI_BACKLOG.force_append(frame.to_bytes()).await;
++    // 记录发送给replicate的字节数，不管replicate是否成功接收
++    OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
++
++    tracing::info!("sending to replicate: {}", frame);
++    Ok(frame)
++}
++
++async fn perform_full_resync(
++    conn: &mut Connection,
++    db: &Db,
++    old_offset: u64,
++) -> anyhow::Result<()> {
++    conn.write_frame(Frame::Simple(format!(
++        "FULLRESYNC {} {:?}",
++        CONFIG.server.run_id, old_offset
++    )))
++    .await?;
++
++    // 保存rdb并发送给replicate
++    util::rdb_save(db.inner.read().await.clone())?;
++    let rdb = tokio::fs::read("dump.rdb").await?;
++    let mut buf = format!("${}\r\n", rdb.len()).into_bytes();
++    buf.extend(rdb);
++    // $<length_of_file>\r\n<contents_of_file>
++    conn.write_all(&buf).await?;
++    conn.flush().await?;
++
++    // 当生成rdb时，可能有新的命令写入，所以需要把新的命令发送给master
++    let len_should_send = OFFSET.load(Ordering::SeqCst) - old_offset;
++    if let Some(cmds_shoud_send) = REPLI_BACKLOG.get_from_end(len_should_send as usize).await {
++        conn.write_all(&cmds_shoud_send).await?;
++    } else {
++        tracing::error!("Failed to get cmds from end of backlog");
++    }
++
++    Ok(())
++}
++
+ // master接收到该命令后，向所有的replication发送"REPLCONF GETACK *"
+ // 等待指定时间后，返回该段时间内同步的从服务器数量
+ // *2\r\n$4\r\nwait\r\n$1\r\n1\r\n
+@@ -191,7 +257,7 @@ impl CmdExecutor for Wait {
+ 
+     async fn hook(
+         &self,
+-        stream: &mut tokio::net::TcpStream,
++        conn: &mut Connection,
+         replacate_msg_sender: &Sender<Frame>,
+         write_cmd_sender: &Sender<Frame>,
+         _db: &Db,
+@@ -243,8 +309,7 @@ impl CmdExecutor for Wait {
+         OFFSET.store(max_ack_offset, Ordering::SeqCst); // 更新ack offset
+ 
+         // 返回同步的replication数量
+-        stream
+-            .write_frame(Frame::Integer(ack_replicas as u64))
++        conn.write_frame(Frame::Integer(ack_replicas as u64))
+             .await?;
+ 
+         Ok(())
+diff --git a/src/cmd/string_cmd.rs b/src/cmd/string_cmd.rs
+index 6cac113..0d4606c 100644
+--- a/src/cmd/string_cmd.rs
++++ b/src/cmd/string_cmd.rs
+@@ -1,12 +1,7 @@
+ use super::CmdExecutor;
+-use crate::{
+-    conf::{CONFIG, REPLI_BACKLOG},
+-    db::Db,
+-    frame::Frame,
+-};
++use crate::{conf::CONFIG, connection::Connection, db::Db, frame::Frame};
+ use anyhow::Result;
+ use bytes::Bytes;
+-use crossbeam::queue::ArrayQueue;
+ use std::time::Duration;
+ use tokio::sync::broadcast::Sender;
+ use tracing::debug;
+@@ -56,7 +51,7 @@ impl CmdExecutor for Set {
+ 
+     async fn hook(
+         &self,
+-        _stream: &mut tokio::net::TcpStream,
++        _conn: &mut Connection,
+         _replacate_msg_sender: &Sender<Frame>,
+         write_cmd_sender: &Sender<Frame>,
+         _db: &Db,
+diff --git a/src/conf/mod.rs b/src/conf/mod.rs
+index e9dbd41..d2367c2 100644
+--- a/src/conf/mod.rs
++++ b/src/conf/mod.rs
+@@ -3,30 +3,28 @@
+ /// 2. 如果提供了配置文件，读取配置文件并更新
+ /// 3. 如果命令行参数有 --server.addr 之类的配置项，merge 该配置
+ /// 4. 如果环境变量有 SERVER_ADDR 之类配置，进行 merge
+-mod serialize;
+-
++// mod serialize;
+ use crate::{
+     cli::Cli,
+     db::{Db, DbInner},
+     frame::Frame,
+-    replicaof::enable_replicaof,
++    replicaof::start_replicaof,
+     util,
+ };
+-use bytes::Bytes;
+ use clap::Parser;
+-use crossbeam::{atomic::AtomicCell, queue::ArrayQueue, sync::ShardedLock};
+ use rand::Rng;
+-use serde_with::serde_as;
+-use std::{
+-    collections::VecDeque,
+-    fmt::Display,
+-    sync::{atomic::AtomicU64, Arc},
+-};
++use serde::Deserialize;
++use std::sync::{atomic::AtomicU64, Arc};
+ use tokio::{
+     select,
+     sync::{broadcast::Sender, Mutex, RwLockWriteGuard},
++    time::Duration,
+ };
+ 
++// 主服务器的run id
++pub static REPLID: once_cell::sync::Lazy<Arc<Mutex<Option<String>>>> =
++    once_cell::sync::Lazy::new(|| Arc::new(Mutex::new(None)));
++
+ pub static CONFIG: once_cell::sync::Lazy<Arc<Conf>> =
+     once_cell::sync::Lazy::new(|| Arc::new(Conf::new()));
+ 
+@@ -38,56 +36,66 @@ pub static OFFSET: AtomicU64 = AtomicU64::new(0);
+ pub static REPLI_BACKLOG: once_cell::sync::Lazy<util::RepliBackLog> =
+     once_cell::sync::Lazy::new(|| util::RepliBackLog::new(1024));
+ 
+-#[derive(Debug, serde::Deserialize)]
++#[derive(Debug, Deserialize)]
+ pub struct Conf {
+-    #[serde(rename = "server")]
+     pub server: ServerConf,
+-    #[serde(rename = "security")]
+     pub security: SecurityConf,
+-    #[serde(rename = "replication")]
+     pub replication: ReplicationConf,
+-    #[serde(rename = "rdb")]
+     pub rdb: RDBConf,
+-    #[serde(rename = "aof")]
+     pub aof: AOFConf,
+ }
+ 
+-#[derive(Debug, serde::Deserialize)]
++#[derive(Debug, Deserialize)]
++#[serde(rename = "server")]
+ pub struct ServerConf {
+     pub port: u16,
++    #[serde(skip)]
++    pub run_id: String, // 服务器的运行ID。由40个随机字符组成
+     pub expire_check_interval_secs: u64, // 检查过期键的周期
++    pub log_level: String,
+ }
+ 
+-#[derive(Debug, serde::Deserialize)]
++#[derive(Debug, Deserialize)]
++#[serde(rename = "security")]
+ pub struct SecurityConf {
+     pub requirepass: Option<String>, // 访问密码
+ }
+ 
+-#[derive(Debug)]
++#[derive(Debug, Deserialize)]
++#[serde(rename = "replication")]
+ pub struct ReplicationConf {
+-    pub replicaof: Option<ShardedLock<String>>, // 主服务器的地址
+-    pub replid: String,                         // 服务器的运行ID。由40个随机字符组成
+-    pub max_replicate: u64,                     // 最多允许多少个从服务器连接到当前服务器
++    pub replicaof: Option<String>,  // 主服务器的地址
++    pub max_replicate: u64,         // 最多允许多少个从服务器连接到当前服务器
+     pub masterauth: Option<String>, // 主服务器密码，设置该值之后，当从服务器连接到主服务器时会发送该值
+ }
+ 
+-#[derive(Debug, serde::Deserialize)]
++#[derive(Debug, Deserialize)]
++#[serde(rename = "rdb")]
+ pub struct RDBConf {
+-    pub enable: bool,          // 是否启用RDB持久化
+-    pub file_path: String,     // RDB文件路径
+-    pub version: u32,          // RDB版本号
+-    pub enable_checksum: bool, // 是否启用RDB校验和
++    pub enable: bool,               // 是否启用RDB持久化
++    pub file_path: String,          // RDB文件路径
++    pub interval: Option<Interval>, // RDB持久化间隔。格式为"seconds changes"，seconds表示间隔时间，changes表示键的变化次数
++    pub version: u32,               // RDB版本号
++    pub enable_checksum: bool,      // 是否启用RDB校验和
+ }
+ 
+-#[derive(Debug, serde::Deserialize)]
++#[derive(Debug, Deserialize)]
++pub struct Interval {
++    pub seconds: u64,
++    pub changes: u64,
++}
++
++#[derive(Debug, Deserialize)]
++#[serde(rename = "aof")]
+ pub struct AOFConf {
+     pub enable: bool, // 是否启用AOF持久化
++    pub use_rdb_preamble: bool,
+     pub file_path: String,
+-    #[serde(rename = "append_fsync")]
+     pub append_fsync: AppendFSync,
+ }
+ 
+-#[derive(Debug, serde::Deserialize)]
++#[derive(Debug, Deserialize)]
++#[serde(rename = "append_fsync")]
+ pub enum AppendFSync {
+     EverySec,
+     Always,
+@@ -118,51 +126,73 @@ impl Conf {
+             .set_override_option("rdb.file_path", cli.rdb_path)
+             .expect("Failed to set rdb file path");
+ 
++        let mut config: Conf = config_builder
++            .build()
++            .expect("Failed to load config")
++            .try_deserialize()
++            .expect("Failed to deserialize config");
++
+         // 4. 运行时配置
+-        let replid: String = rand::thread_rng()
++        let run_id: String = rand::thread_rng()
+             .sample_iter(&rand::distributions::Alphanumeric)
+             .take(40)
+-            .map(char::from) // 将u8转换为char
+-            .collect(); // 直接收集到String中
++            .map(char::from)
++            .collect();
+ 
+-        config_builder
+-            .set_override("replication.replid", replid)
+-            .expect("Failed to set replid")
+-            .build()
+-            .expect("Failed to load config")
+-            .try_deserialize()
+-            .expect("Failed to deserialize config")
++        config.server.run_id = run_id;
++
++        config
+     }
+ 
+     pub fn may_enable_replicaof(
+         &self,
+         db: Db,
+-        psync_to_others_sender: Sender<Frame>,
+-        others_to_psync_sender: Sender<Frame>,
++        replacate_msg_sender: Sender<Frame>,
++        write_cmd_sender: Sender<Frame>,
+     ) {
+-        if let Some(master_addr) = &self.replication.replicaof {
+-            let master_addr = master_addr
+-                .read()
+-                .expect("Failed to read master_addr")
+-                .clone();
++        if let Some(master_addr) = self.replication.replicaof.clone() {
+             tokio::spawn(async move {
+-                enable_replicaof(
+-                    master_addr,
+-                    db,
+-                    psync_to_others_sender,
+-                    others_to_psync_sender,
+-                )
+-                .await;
++                if let Err(e) =
++                    start_replicaof(master_addr, &db, replacate_msg_sender, write_cmd_sender).await
++                {
++                    panic!("Failed to enable replicaof: {:?}", e);
++                }
+             });
+         }
+     }
+ 
+-    pub fn may_enable_rdb(&self, db: &mut RwLockWriteGuard<DbInner>) {
++    pub fn may_enable_rdb(
++        &self,
++        db: &mut RwLockWriteGuard<DbInner>,
++        mut write_cmd_receiver: tokio::sync::broadcast::Receiver<Frame>,
++    ) {
+         // AOF持久化优先级高于RDB持久化，当AOF持久化开启时，不加载RDB文件
+         if !self.rdb.enable || self.aof.enable {
+             return;
+         }
+ 
++        if let Some(Interval { seconds, changes }) = self.rdb.interval {
++            let db = db.clone();
++            tokio::spawn(async move {
++                let mut changes_now = 0;
++                let mut interval = tokio::time::interval(Duration::from_secs(seconds));
++                loop {
++                    tokio::select! {
++                        _ = interval.tick() => {
++                            if changes_now >= changes {
++                                let _ = util::rdb_save(db.clone());
++                            }
++                        }
++                        cmd = write_cmd_receiver.recv() => {
++                            if cmd.is_ok() {
++                                changes_now += 1;
++                            }
++                        }
++                    }
++                }
++            });
++        }
++
+         match util::rdb_load(db) {
+             Ok(_) => {
+                 tracing::info!("RDB file loaded successfully!!!");
+diff --git a/src/conf/serialize.rs b/src/conf/serialize.rs
+index 1cb1d09..15a51a4 100644
+--- a/src/conf/serialize.rs
++++ b/src/conf/serialize.rs
+@@ -1,6 +1,5 @@
+ use super::ReplicationConf;
+ 
+-use crossbeam::atomic::AtomicCell;
+ use crossbeam::sync::ShardedLock;
+ use serde::ser::SerializeStruct;
+ use serde::{Deserialize, Deserializer, Serialize, Serializer};
+@@ -14,12 +13,7 @@ impl Serialize for ReplicationConf {
+     {
+         let mut state = serializer.serialize_struct("ReplicationConf", 4)?;
+         let replicaof = if let Some(replicaof) = &self.replicaof {
+-            Some(
+-                replicaof
+-                    .read()
+-                    .map_err(|e| serde::ser::Error::custom(e))?
+-                    .clone(),
+-            )
++            Some(replicaof.read().map_err(serde::ser::Error::custom)?.clone())
+         } else {
+             None
+         };
+@@ -39,8 +33,7 @@ impl<'de> Deserialize<'de> for ReplicationConf {
+     where
+         D: Deserializer<'de>,
+     {
+-        const FIELDS: &'static [&'static str] =
+-            &["replicaof", "replid", "max_replicate", "masterauth"];
++        const FIELDS: &[&str] = &["replicaof", "replid", "max_replicate", "masterauth"];
+ 
+         impl<'de> serde::de::Visitor<'de> for ReplicationConfVisitor {
+             type Value = ReplicationConf;
+diff --git a/src/frame.rs b/src/frame.rs
+index 292d07f..745bf83 100644
+--- a/src/frame.rs
++++ b/src/frame.rs
+@@ -52,6 +52,12 @@ impl Frame {
+                     return Ok(Box::new(cmd::Replconf::GetAck));
+                     // }
+                 }
++                b"ack" => {
++                    if let Some(offset) = bulks.get(2) {
++                        let offset = bytes_to_u64(offset.clone())?;
++                        return Ok(Box::new(cmd::Replconf::Ack(offset)));
++                    }
++                }
+                 _ => return Ok(Box::<cmd::Replconf>::default()),
+             },
+             "psync" => {
+diff --git a/src/init.rs b/src/init.rs
+index 6b41728..3c507b4 100644
+--- a/src/init.rs
++++ b/src/init.rs
+@@ -1,14 +1,16 @@
+ use std::str::FromStr;
+ use tracing::Level;
+ 
++use crate::conf::CONFIG;
++
+ pub fn init() {
+     if std::env::var("RUST_LOG").is_err() {
+-        std::env::set_var("RUST_LOG", "info");
++        std::env::set_var("RUST_LOG", &CONFIG.server.log_level);
+     }
+ 
+     let level = Level::from_str(&std::env::var("RUST_LOG").unwrap()).unwrap();
+     tracing_subscriber::fmt()
+-        // .pretty()
++        .pretty()
+         .with_max_level(level)
+         .init();
+ }
+diff --git a/src/main.rs b/src/main.rs
+index c919695..f29119a 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -3,6 +3,7 @@
+ mod cli;
+ mod cmd;
+ mod conf;
++mod connection;
+ mod db;
+ mod frame;
+ mod init;
+@@ -45,13 +46,6 @@ mod util;
+ // INFO: 已有的feature:
+ // 1. RDB和AOF持久化
+ 
+-// asd asd
+-// (error) ERR unknown command 'asd', with args beginning with: 'asd'
+-// get foo a
+-// (error) ERR wrong number of arguments for 'get' command
+-// set foo bar bar2
+-// (error) ERR syntax error
+-
+ #[tokio::main]
+ async fn main() {
+     init::init();
+diff --git a/src/replicaof.rs b/src/replicaof.rs
+index 0c5d760..cfdf05a 100644
+--- a/src/replicaof.rs
++++ b/src/replicaof.rs
+@@ -1,5 +1,6 @@
+ use crate::{
+-    conf::{CONFIG, OFFSET},
++    conf::{CONFIG, OFFSET, REPLID},
++    connection::Connection,
+     db::Db,
+     frame::Frame,
+     stream::FrameHandler,
+@@ -8,71 +9,111 @@ use crate::{
+ use anyhow::{bail, Result};
+ use bytes::Bytes;
+ use std::sync::atomic::Ordering;
+-use tokio::{
+-    io::{AsyncReadExt, AsyncWriteExt},
+-    net::TcpStream,
+-    select,
+-    sync::broadcast::Sender,
+-};
++use tokio::{io::AsyncReadExt, net::TcpStream, sync::broadcast::Sender};
+ 
+ // 连接master server，开始主从复制
+-pub async fn enable_replicaof(
++pub async fn start_replicaof(
+     master_addr: String,
+-    db: Db,
+-    psync_to_others_sender: Sender<Frame>,
+-    others_to_psync_sender: Sender<Frame>,
+-) {
+-    let mut to_master = TcpStream::connect(&master_addr)
+-        .await
+-        .expect("Fail to connect to master.");
+-
+-    // 三路握手，与master server建立连接。如果连接失败，则尝试重新连接。如果超过三次握手失败，则退出程序
+-    let mut retry = 3;
+-    while let Err(e) = replicaof_hanshake(&mut to_master, CONFIG.server.port).await {
+-        tracing::error!("Fail to handshake with master: {}", e);
+-        let _ = to_master.shutdown().await;
+-        to_master = TcpStream::connect(&master_addr)
+-            .await
+-            .expect("Fail to connect to master.");
+-        retry -= 1;
+-        if retry == 0 {
+-            panic!("Fail to handshake with master.");
++    db: &Db,
++    replacate_msg_sender: Sender<Frame>,
++    write_cmd_sender: Sender<Frame>,
++) -> anyhow::Result<()> {
++    let mut to_master = Connection::connect(&master_addr).await?;
++
++    // 三路握手，与master server建立连接。
++    replicaof_hanshake(&mut to_master, CONFIG.server.port).await?;
++
++    let replid = REPLID.lock().await.clone();
++    if let Some(replid) = replid {
++        // 非首次复制
++
++        // 发送之前从master server接收到的REPLID
++        to_master
++            .write_frame(
++                vec![
++                    "PSYNC".into(),
++                    replid.into(),
++                    format!("{}", OFFSET.load(Ordering::SeqCst)).into(),
++                ]
++                .into(),
++            )
++            .await?;
++
++        if let Some(Frame::Simple(s)) = to_master.read_frame().await? {
++            if s.starts_with("FULLRESYNC") {
++                // 如果master server返回FULLRESYNC，则进行全量复制
++                let replid = s.split_whitespace().nth(1).unwrap_or_default();
++                full_replication(&mut to_master, db, replid).await?;
++                tracing::info!("Receive '{}'. Start full replicate sync.", s);
++            } else if s.starts_with("CONTINUE") {
++                // 如果master server返回CONTINUE，则继续增量复制
++                tracing::info!("Receive '{}'. Perform partial replicate sync.", s);
++            } else {
++                bail!(
++                    "Master server should respond 'FULLRESYNC' or 'CONTINUE' but got {:?}",
++                    s
++                );
++            }
++        } else {
++            bail!("Master server responds invaildly.");
++        }
++    } else {
++        // 首次复制
++
++        // send {PSYNC ? -1}
++        to_master
++            .write_frame(vec!["PSYNC".into(), "?".into(), "-1".into()].into())
++            .await?;
++
++        // recv {FULLRESYNC <REPL_ID> <offset>}
++        if let Some(Frame::Simple(s)) = to_master.read_frame().await? {
++            if s.starts_with("FULLRESYNC") {
++                tracing::info!("Receive '{}'. Perform full replicate sync.", s);
++                let replid = s.split_whitespace().nth(1).unwrap_or_default();
++                full_replication(&mut to_master, db, replid).await?;
++            } else {
++                bail!("Master server should respond 'FULLRESYNC' but got {:?}", s);
++            }
++        } else {
++            bail!("Master server responds invaildly.");
+         }
+     }
+ 
++    let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+     loop {
+-        // 处理master server发送过来的命令
+-        match handle_master_connection(
+-            &mut to_master,
+-            &db,
+-            &psync_to_others_sender,
+-            &others_to_psync_sender,
+-        )
+-        .await
+-        {
+-            Err(e) => {
+-                let _ = to_master.write_frame(Frame::Error(e.to_string())).await;
++        tokio::select! {
++            // 每隔1秒向master server发送REPLCONF ACK <replication_offset>命令
++            _ = interval.tick() => {
++                to_master
++                    .write_frame(
++                        vec![
++                            "REPLCONF".into(),
++                            "ACK".into(),
++                            format!("{}", OFFSET.load(Ordering::SeqCst)).into(),
++                        ]
++                        .into(),
++                    )
++                    .await?;
++            }
++            // 处理master server发送过来的命令
++            resp = handle_master_connection(&mut to_master, db, &replacate_msg_sender, &write_cmd_sender) => {
++                match resp {
++                    Err(e) => {
++                        let _ = to_master.write_frame(Frame::Error(e.to_string())).await;
++                    }
++                    Ok(Some(())) => {}
++                    Ok(None) => break,
++                }
+             }
+-            Ok(Some(())) => {}
+-            Ok(None) => break,
+         }
+     }
++
++    Ok(())
+ }
+ 
+-async fn full_replication(to_master: &mut TcpStream, db: &Db) -> Result<()> {
+-    // send {PSYNC ? -1}
+-    to_master
+-        .write_frame(vec!["PSYNC".into(), "?".into(), "-1".into()].into())
+-        .await?;
+-    // recv {FULLRESYNC <REPL_ID> 0}
+-    if let Some(Frame::Simple(s)) = to_master.read_frame().await? {
+-        if !s.starts_with("FULLRESYNC") {
+-            bail!("Fail to replicate.");
+-        }
+-        tracing::info!("Successfully replicate. {}", s);
+-    } else {
+-        bail!("Fail to replicate.");
+-    }
++async fn full_replication(to_master: &mut Connection, db: &Db, replid: &str) -> Result<()> {
++    // 记录主服务器的ID
++    *REPLID.lock().await = Some(replid.to_string());
+ 
+     // 从master server接收RDB文件，并写入本地
+     let rdb = get_rdb(to_master).await.expect("Fail to get rdb");
+@@ -81,60 +122,12 @@ async fn full_replication(to_master: &mut TcpStream, db: &Db) -> Result<()> {
+         .expect("Fail to write rdb.");
+ 
+     // 从本地加载RDB文件
+-    let mut retry = 3;
+-    while let Err(e) = util::rdb_load(&mut db.inner.write().await) {
+-        tracing::error!("{} Trying again.", e);
+-        retry -= 1;
+-        if retry == 0 {
+-            panic!("Fail to load rdb.");
+-        }
+-    }
+-
+-    // 从master server接收RDB文件，并写入本地
+-    let rdb = get_rdb(to_master).await?;
+-    tokio::fs::write("dump.rdb", rdb).await?;
+-
+-    Ok(())
+-}
+-
+-async fn partial_replication(to_master: &mut TcpStream, db: &Db, replid: String) -> Result<()> {
+-    // // send {PSYNC <REPL_ID> <OFFSET>}
+-    // to_master
+-    //     .write_frame(
+-    //         vec![
+-    //             "PSYNC".into(),
+-    //             replid.into(),
+-    //             OFFSET.load(Ordering::SeqCst).into(),
+-    //         ]
+-    //         .into(),
+-    //     )
+-    //     .await?;
+-    // // recv {CONTINUE}
+-    // if to_master.read_frame().await? != Some(Frame::Simple("CONTINUE".to_string())) {
+-    //     bail!("Fail to replicate.");
+-    // }
+-    //
+-    // // 从master server接收增量数据
+-    // loop {
+-    //     let frame = to_master.read_frame().await?;
+-    //     if let Some(frame) = frame {
+-    //         tracing::info!("received from master: {}", frame);
+-    //         let cmd = frame.clone().parse_cmd()?;
+-    //         if let Some(res) = cmd.replicate_execute(db).await? {
+-    //             tracing::info!("sending to master: {}", res);
+-    //             to_master.write_frame(res).await?;
+-    //         }
+-    //         cmd.hook(to_master, db, frame.clone()).await?;
+-    //         OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
+-    //     } else {
+-    //         break;
+-    //     }
+-    // }
++    util::rdb_load(&mut db.inner.write().await)?;
+ 
+     Ok(())
+ }
+ 
+-async fn replicaof_hanshake(to_master: &mut TcpStream, port: u16) -> Result<()> {
++async fn replicaof_hanshake(to_master: &mut Connection, port: u16) -> Result<()> {
+     /* First Stage: 发送PING命令 */
+ 
+     // 向master server 发送PING
+@@ -209,19 +202,19 @@ async fn replicaof_hanshake(to_master: &mut TcpStream, port: u16) -> Result<()>
+     Ok(())
+ }
+ 
+-async fn get_rdb(to_master: &mut TcpStream) -> Result<Vec<u8>> {
+-    let _ = to_master.read_u8().await;
++async fn get_rdb(to_master: &mut Connection) -> Result<Vec<u8>> {
++    let _ = to_master.stream.read_u8().await;
+     let rdb_len = to_master.read_decimal().await?;
+     let mut buf = vec![0u8; rdb_len as usize];
+-    to_master.read_exact(&mut buf).await?;
++    to_master.stream.read_exact(&mut buf).await?;
+     Ok(buf)
+ }
+ 
+ async fn handle_master_connection(
+-    stream: &mut TcpStream,
++    stream: &mut Connection,
+     db: &Db,
+-    psync_to_others_sender: &Sender<Frame>,
+-    others_to_psync_sender: &Sender<Frame>,
++    replacate_msg_sender: &Sender<Frame>,
++    write_cmd_sender: &Sender<Frame>,
+ ) -> Result<Option<()>> {
+     if let Some(frame) = stream.read_frame().await? {
+         tracing::info!("received from master: {}", frame);
+@@ -233,8 +226,8 @@ async fn handle_master_connection(
+         }
+         cmd.hook(
+             stream,
+-            psync_to_others_sender,
+-            others_to_psync_sender,
++            replacate_msg_sender,
++            write_cmd_sender,
+             db,
+             frame.clone(),
+         )
+diff --git a/src/server.rs b/src/server.rs
+index 73424c7..ca291c3 100644
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -1,5 +1,6 @@
+-use crate::util;
+-use crate::{conf::CONFIG, db::Db, frame::Frame, stream::FrameHandler};
++use crate::connection::Connection;
++use crate::{conf::CONFIG, db::Db, frame::Frame};
++use crate::{connection, util};
+ use anyhow::Result;
+ use std::net::SocketAddr;
+ use std::time::Duration;
+@@ -20,7 +21,7 @@ pub async fn run() {
+     let (replacate_msg_sender, _replacate_msg_receiver) =
+         channel(CONFIG.replication.max_replicate as usize * 2);
+     // 创建一个广播通道，当有写命令时，写命令的协程可以向Psync协程以及有关aof的协程发送写命令
+-    let (write_cmd_sender, _write_cmd_receiver) =
++    let (write_cmd_sender, write_cmd_receiver) =
+         channel(CONFIG.replication.max_replicate as usize * 2);
+ 
+     // 如果配置了主从复制，则启动一个异步任务，连接到主服务器
+@@ -37,7 +38,7 @@ pub async fn run() {
+         .await;
+ 
+     // 如果配置了RDB持久化，则加载RDB文件。(当RDB和AOF同时开启时，只会加载AOF文件)
+-    CONFIG.may_enable_rdb(&mut db.inner.write().await);
++    CONFIG.may_enable_rdb(&mut db.inner.write().await, write_cmd_receiver);
+ 
+     // 开启一个异步任务，定时检查过期键
+     util::check_expiration_periodical(
+@@ -53,16 +54,17 @@ pub async fn run() {
+ 
+     loop {
+         match listener.accept().await {
+-            Ok((mut stream, addr)) => {
++            Ok((stream, addr)) => {
+                 debug!("accepted new connection from {addr}");
+ 
++                let mut conn = Connection::new(stream, addr.to_string());
+                 let db = db.clone();
+                 let replacate_msg_sender = replacate_msg_sender.clone();
+                 let write_cmd_sender = write_cmd_sender.clone();
+                 tokio::spawn(async move {
+                     loop {
+                         match handle(
+-                            &mut stream,
++                            &mut conn,
+                             &db,
+                             &replacate_msg_sender,
+                             &write_cmd_sender,
+@@ -73,7 +75,7 @@ pub async fn run() {
+                             // 处理命令出错，向客户端返回错误信息，并继续循环处理客户端的下一条命令
+                             Err(e) => {
+                                 tracing::error!("error: {}", e);
+-                                let _ = stream.write_frame(Frame::Error(e.to_string())).await;
++                                let _ = conn.write_frame(Frame::Error(e.to_string())).await;
+                             }
+                             Ok(Some(())) => {} // 当前命令处理完毕，客户端还未关闭连接。继续循环处理客户端的下一条命令
+                             Ok(None) => break, // 客户端关闭连接，退出循环
+@@ -90,7 +92,7 @@ pub async fn run() {
+ }
+ 
+ async fn handle(
+-    stream: &mut TcpStream,
++    conn: &mut Connection,
+     db: &Db,
+     psync_to_others_sender: &Sender<Frame>,
+     others_to_psync_sender: &Sender<Frame>,
+@@ -100,7 +102,7 @@ async fn handle(
+     // return Ok(());
+ 
+     // 读取命令为一个Frame
+-    if let Some(frame) = stream.read_frame().await? {
++    if let Some(frame) = conn.read_frame().await? {
+         tracing::info!("received from client: {}", frame);
+ 
+         let cmd = frame.clone().parse_cmd()?; // 解析Frame为一个命令
+@@ -108,12 +110,12 @@ async fn handle(
+         // 执行命令，如果命令需要返回结果，则将结果写入stream
+         if let Some(res) = cmd.execute(db).await? {
+             tracing::info!("sending to client: {}", res);
+-            stream.write_frame(res).await?;
++            conn.write_frame(res).await?;
+         }
+ 
+         // 执行命令钩子
+         cmd.hook(
+-            stream,
++            conn,
+             psync_to_others_sender,
+             others_to_psync_sender,
+             db,
+diff --git a/src/stream.rs b/src/stream.rs
+index 6df20d2..18dc956 100644
+--- a/src/stream.rs
++++ b/src/stream.rs
+@@ -191,8 +191,3 @@ async fn write_value(stream: &mut TcpStream, frame: Frame) -> Result<()> {
+ 
+     Ok(())
+ }
+-
+-// TODO:
+-// impl FrameHandler for  {
+-//
+-// }
+diff --git a/src/util/aof/mod.rs b/src/util/aof/mod.rs
+index 157d433..1d4edb0 100644
+--- a/src/util/aof/mod.rs
++++ b/src/util/aof/mod.rs
+@@ -1,6 +1,6 @@
+ use std::{io::Write, time::Duration};
+ 
+-use crate::{conf::CONFIG, frame::Frame};
++use crate::{conf::CONFIG, db::Db, frame::Frame};
+ use bytes::BytesMut;
+ use tokio::{fs::File, io::AsyncWriteExt, sync::broadcast::Receiver};
+ 
+@@ -63,4 +63,12 @@ impl Aof {
+         client.shutdown(std::net::Shutdown::Both)?;
+         Ok(())
+     }
++
++    // TODO:
++    pub async fn rewrite(db: &Db) -> anyhow::Result<()> {
++        let db = db.inner.read().await.clone();
++        // 读取Db中的数据, 并写入到AOF文件中
++        super::rdb_save_in(db, &CONFIG.aof.file_path)?;
++        Ok(())
++    }
+ }
+diff --git a/src/util/mod.rs b/src/util/mod.rs
+index 9664d24..39d3194 100644
+--- a/src/util/mod.rs
++++ b/src/util/mod.rs
+@@ -1,6 +1,7 @@
+ mod aof;
+ mod rdb;
+ mod repl_log;
++mod test_util;
+ 
+ use crate::db::Db;
+ use anyhow::{anyhow, Result};
+diff --git a/src/util/rdb/mod.rs b/src/util/rdb/mod.rs
+index 2ffd4b7..d85312d 100644
+--- a/src/util/rdb/mod.rs
++++ b/src/util/rdb/mod.rs
+@@ -4,32 +4,33 @@ mod rdb_load;
+ mod rdb_save;
+ 
+ pub use rdb_load::rdb_load;
+-pub use rdb_save::rdb_save;
++pub use rdb_save::{rdb_save, rdb_save_in};
+ 
+-const EOF: u8 = 0xff;
+-const SELECTDB: u8 = 0xfe; // 只允许一个数据库
+-const EXPIRETIME: u8 = 0xfd;
+-const EXPIRETIME_MS: u8 = 0xfc;
+-const RESIZEDB: u8 = 0xfb;
+-const AUX: u8 = 0xfa;
++// Opcode
++const RDB_OPCODE_EOF: u8 = 0xff;
++const RDB_OPCODE_SELECTDB: u8 = 0xfe; // 只允许一个数据库
++const RDB_OPCODE_EXPIRETIME: u8 = 0xfd;
++const RDB_OPCODE_EXPIRETIME_MS: u8 = 0xfc;
++const RDB_OPCODE_RESIZEDB: u8 = 0xfb;
++const RDB_OPCODE_AUX: u8 = 0xfa;
+ 
+ // 进行类型编码时，如果是252(EXPIRETIME_MS)，则后面的数据是过期时间，如果是以下值，则后面的数据是该类型的kv编码
+-const RUREDIS_RDB_TYPE_STRING: u8 = 0;
+-const RUREDIS_RDB_TYPE_LIST: u8 = 1;
+-const RUREDIS_RDB_TYPE_SET: u8 = 2;
+-const RUREDIS_RDB_TYPE_ZSET: u8 = 3;
+-const RUREDIS_RDB_TYPE_HASH: u8 = 4;
+-const RUREDIS_RDB_TYPE_ZIPMAP: u8 = 9;
+-const RUREDIS_RDB_TYPE_ZIPLIST: u8 = 10;
+-const RUREDIS_RDB_TYPE_INTSET: u8 = 11;
+-const RUREDIS_RDB_TYPE_ZSET_ZIPLIST: u8 = 12;
+-const RUREDIS_RDB_TYPE_HASH_ZIPLIST: u8 = 13;
+-const RUREDIS_RDB_TYPE_LIST_QUICKLIST: u8 = 14;
++const RDB_TYPE_STRING: u8 = 0;
++const RDB_TYPE_LIST: u8 = 1;
++const RDB_TYPE_SET: u8 = 2;
++const RDB_TYPE_ZSET: u8 = 3;
++const RDB_TYPE_HASH: u8 = 4;
++const RDB_TYPE_ZIPMAP: u8 = 9;
++const RDB_TYPE_ZIPLIST: u8 = 10;
++const RDB_TYPE_INTSET: u8 = 11;
++const RDB_TYPE_ZSET_ZIPLIST: u8 = 12;
++const RDB_TYPE_HASH_ZIPLIST: u8 = 13;
++const RDB_TYPE_LIST_QUICKLIST: u8 = 14;
+ 
+ // 进行长度编码时，如果开头2bit是11，则后面的数据不是字符串，而是特殊的编码格式
+-const RUREDIS_RDB_SPECTIAL_FORMAT_INT8: u8 = 0;
+-const RUREDIS_RDB_SPECTIAL_FORMAT_INT16: u8 = 1;
+-const RUREDIS_RDB_SPECTIAL_FORMAT_INT32: u8 = 2;
++const RDB_SPECTIAL_FORMAT_INT8: u8 = 0;
++const RDB_SPECTIAL_FORMAT_INT16: u8 = 1;
++const RDB_SPECTIAL_FORMAT_INT32: u8 = 2;
+ 
+ #[cfg(test)]
+ mod test_rdb {
+diff --git a/src/util/rdb/rdb_load.rs b/src/util/rdb/rdb_load.rs
+index 4dd0a4e..0d6b490 100644
+--- a/src/util/rdb/rdb_load.rs
++++ b/src/util/rdb/rdb_load.rs
+@@ -7,17 +7,16 @@ use std::{
+ use super::*;
+ use crate::{
+     conf::CONFIG,
+-    db::{self, DbInner, ObjValue, Object},
++    db::{self, Db, DbInner, ObjValue, Object},
+ };
+ use bytes::{Buf, Bytes};
+ use tokio::sync::RwLockWriteGuard;
+ 
+ pub fn rdb_load(db: &mut RwLockWriteGuard<DbInner>) -> anyhow::Result<()> {
+-    let mut rdb = std::fs::File::open("dump.rdb")?;
++    let mut rdb = std::fs::File::open(&CONFIG.rdb.file_path)?;
+ 
+     let mut buf = Vec::with_capacity(1024);
+     rdb.read_to_end(&mut buf)?;
+-    println!("{:?}", buf);
+ 
+     let mut cursor = Cursor::new(buf);
+     let mut magic = [0; 5];
+@@ -26,10 +25,30 @@ pub fn rdb_load(db: &mut RwLockWriteGuard<DbInner>) -> anyhow::Result<()> {
+         anyhow::bail!("Failed to load RDB file: magic string should be RUREDIS, but got {magic:?}");
+     }
+     let _rdb_version = cursor.get_u32();
+-    cursor.advance(5);
++
++    // Database Selector
++    if cursor.get_ref()[cursor.position() as usize] == RDB_OPCODE_SELECTDB {
++        let _db_num = decode_length(&mut cursor);
++        tracing::debug!("Select database: {}", _db_num);
++    }
++
++    // Resizedb information
++    if cursor.get_ref()[cursor.position() as usize] == RDB_OPCODE_RESIZEDB {
++        let _db_size = decode_length(&mut cursor);
++        let _expires_size = decode_length(&mut cursor);
++        tracing::debug!(
++            "Resizedb: db_size: {}, expires_size: {}",
++            _db_size,
++            _expires_size
++        );
++    }
++    // Auxiliary fields
++    while let Some((_key, _value)) = decode_aux(&mut cursor) {
++        tracing::debug!("Auxiliary fields: key: {:?}, value: {:?}", _key, _value);
++    }
+ 
+     let len = cursor.get_ref().len();
+-    while cursor.get_ref()[cursor.position() as usize] != EOF {
++    while cursor.get_ref()[cursor.position() as usize] != RDB_OPCODE_EOF {
+         let (key, obj) = decode_kv(&mut cursor);
+         db.string_kvs.0.insert(key, obj);
+     }
+@@ -50,15 +69,15 @@ pub fn rdb_load(db: &mut RwLockWriteGuard<DbInner>) -> anyhow::Result<()> {
+ 
+ pub(super) fn decode_kv(cursor: &mut Cursor<Vec<u8>>) -> (Bytes, Object<db::String>) {
+     match cursor.get_u8() {
+-        EXPIRETIME_MS => {
++        RDB_OPCODE_EXPIRETIME_MS => {
+             let ms = cursor.get_u64();
+             let expire_at = Some(SystemTime::now() + std::time::Duration::from_millis(ms));
+             match cursor.get_u8() {
+-                RUREDIS_RDB_TYPE_STRING => decode_string(cursor, expire_at),
++                RDB_TYPE_STRING => decode_string(cursor, expire_at),
+                 _ => unimplemented!(),
+             }
+         }
+-        RUREDIS_RDB_TYPE_STRING => decode_string(cursor, None),
++        RDB_TYPE_STRING => decode_string(cursor, None),
+         other => unimplemented!("Unknow type: {}", other),
+     }
+ }
+@@ -96,6 +115,9 @@ pub(super) fn decode_string(
+ 
+ pub(super) fn decode_raw(cursor: &mut Cursor<Vec<u8>>) -> Bytes {
+     let len = decode_length(cursor);
++    if len == 0 {
++        return Bytes::new();
++    }
+     let mut raw = vec![0; len];
+     let _ = cursor.read_exact(&mut raw);
+     raw.into()
+@@ -103,9 +125,9 @@ pub(super) fn decode_raw(cursor: &mut Cursor<Vec<u8>>) -> Bytes {
+ 
+ pub(super) fn decode_int(cursor: &mut Cursor<Vec<u8>>) -> i64 {
+     match cursor.get_u8() & 0x3f {
+-        RUREDIS_RDB_SPECTIAL_FORMAT_INT8 => cursor.get_i8() as i64,
+-        RUREDIS_RDB_SPECTIAL_FORMAT_INT16 => cursor.get_i16() as i64,
+-        RUREDIS_RDB_SPECTIAL_FORMAT_INT32 => cursor.get_i32() as i64,
++        RDB_SPECTIAL_FORMAT_INT8 => cursor.get_i8() as i64,
++        RDB_SPECTIAL_FORMAT_INT16 => cursor.get_i16() as i64,
++        RDB_SPECTIAL_FORMAT_INT32 => cursor.get_i32() as i64,
+         _ => unreachable!(),
+     }
+ }
+@@ -137,7 +159,17 @@ pub(super) fn decode_length(cursor: &mut Cursor<Vec<u8>>) -> usize {
+             cursor.get_u8(),
+         ]) as usize,
+         // 11
++        // TODO:
+         3 => ctrl as usize & 0x3f,
+         _ => unreachable!(),
+     }
+ }
++
++pub(super) fn decode_aux(cursor: &mut Cursor<Vec<u8>>) -> Option<(Bytes, Bytes)> {
++    if cursor.get_ref()[cursor.position() as usize] != RDB_OPCODE_AUX {
++        println!("aux: {:?}", cursor.get_ref()[cursor.position() as usize]);
++        return None;
++    }
++    cursor.advance(1);
++    Some((decode_key(cursor), decode_raw(cursor)))
++}
+diff --git a/src/util/rdb/rdb_save.rs b/src/util/rdb/rdb_save.rs
+index 4dfef55..3915c60 100644
+--- a/src/util/rdb/rdb_save.rs
++++ b/src/util/rdb/rdb_save.rs
+@@ -15,10 +15,14 @@ use std::{io::Write, time::SystemTime};
+ // 2. len, string
+ 
+ pub fn rdb_save(db: DbInner) -> anyhow::Result<()> {
++    rdb_save_in(db, &CONFIG.rdb.file_path)
++}
++
++pub fn rdb_save_in(db: DbInner, path: &str) -> anyhow::Result<()> {
+     let mut buf = Vec::with_capacity(1024);
+     buf.extend_from_slice(b"REDIS");
+     buf.put_u32(1); // 版本号
+-    buf.put_u8(SELECTDB); // 选择数据库
++    buf.put_u8(RDB_OPCODE_SELECTDB); // 选择数据库
+     buf.put_u32(0); // 选择0号数据库
+ 
+     // 保存string_kv{kvs_with_expire[ObjValue::Raw_nums expire len key len data ObjValue::Int_nums expire len key int8/int16/int32 data]}
+@@ -26,7 +30,7 @@ pub fn rdb_save(db: DbInner) -> anyhow::Result<()> {
+         encode_string_kv(&mut buf, k.clone(), obj);
+     });
+ 
+-    buf.put_u8(EOF); // 结束标志
++    buf.put_u8(RDB_OPCODE_EOF); // 结束标志
+     let checksum = if CONFIG.rdb.enable_checksum {
+         crc::Crc::<u64>::new(&crc::CRC_64_REDIS).checksum(&buf)
+     } else {
+@@ -35,7 +39,7 @@ pub fn rdb_save(db: DbInner) -> anyhow::Result<()> {
+     buf.put_u64(checksum); // checksum 8 bytes 使用crc64
+ 
+     // 保存到文件
+-    let mut file = std::fs::File::create("dump.rdb")?;
++    let mut file = std::fs::File::create(path)?;
+     file.write_all(&buf)?;
+ 
+     Ok(())
+@@ -45,14 +49,14 @@ pub(super) fn encode_string_kv(buf: &mut Vec<u8>, key: Bytes, obj: &Object<db::S
+     let expire_at = obj.expire_at;
+     if let Some(expire_at) = expire_at {
+         if let Ok(expire) = expire_at.duration_since(SystemTime::now()) {
+-            buf.put_u8(EXPIRETIME_MS);
++            buf.put_u8(RDB_OPCODE_EXPIRETIME_MS);
+             buf.put_u64(expire.as_millis() as u64);
+         } else {
+             // 过期则忽略
+             return;
+         }
+     }
+-    buf.put_u8(RUREDIS_RDB_TYPE_STRING);
++    buf.put_u8(RDB_TYPE_STRING);
+     encode_key(buf, key);
+     match &obj.value {
+         ObjValue::Int(i) => encode_int(buf, *i as i32),
+@@ -71,13 +75,13 @@ pub(super) fn encode_raw(buf: &mut Vec<u8>, value: Bytes) {
+ pub(super) fn encode_int(buf: &mut Vec<u8>, value: i32) {
+     // PERF: 还能优化RUREDIS_RDB_ENC_INT8..的占用空间
+     if value >= i8::MIN as i32 && value <= i8::MAX as i32 {
+-        encode_length(buf, 0, Some(RUREDIS_RDB_SPECTIAL_FORMAT_INT8));
++        encode_length(buf, 0, Some(RDB_SPECTIAL_FORMAT_INT8));
+         buf.put_i8(value as i8);
+     } else if value >= i16::MIN as i32 && value <= i16::MAX as i32 {
+-        encode_length(buf, 0, Some(RUREDIS_RDB_SPECTIAL_FORMAT_INT16));
++        encode_length(buf, 0, Some(RDB_SPECTIAL_FORMAT_INT16));
+         buf.put_i16(value as i16);
+     } else {
+-        encode_length(buf, 0, Some(RUREDIS_RDB_SPECTIAL_FORMAT_INT32));
++        encode_length(buf, 0, Some(RDB_SPECTIAL_FORMAT_INT32));
+         buf.put_i32(value);
+     }
+ }
+diff --git a/src/util/repl_log.rs b/src/util/repl_log.rs
+index e59956f..8c648b6 100644
+--- a/src/util/repl_log.rs
++++ b/src/util/repl_log.rs
+@@ -5,6 +5,7 @@ use std::{
+ };
+ use tokio::sync::Mutex;
+ 
++#[derive(Debug)]
+ pub struct RepliBackLog {
+     pub buf: Arc<Mutex<VecDeque<u8>>>,
+     pub capacity: AtomicU64,
+@@ -40,9 +41,9 @@ impl RepliBackLog {
+     // 从尾部获取n个字节
+     pub async fn get_from_end(&self, n: usize) -> Option<Vec<u8>> {
+         let buf = self.buf.lock().await;
+-        println!("buf.len() = {}", buf.len());
+         let mut res = Vec::new();
+         for i in 0..n {
++            // 如果数据不足，返回None
+             if buf.len() < i + 1 {
+                 return None;
+             }

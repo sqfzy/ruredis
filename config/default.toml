@@ -1,6 +1,7 @@
 [server]
 port = 6379                       # 服务器端口
 expire_check_interval_secs = 1000 # 检查过期键的频率
+log_level = "debug"               # 日志级别
 
 [security]
 # requirepass = "passwd" # 主服务器密码。当设置该值之后，客户端连接到服务器时需要发送AUTH命令进行认证
@@ -14,10 +15,15 @@ max_replicate = 10           # 最多允许多少个从服务器连接到当前�
 [rdb]
 enable = true          # 是否开启RDB持久化
 file_path = "dump.rdb" # RDB文件路径
-version = 1            # RDB版本
-enable_checksum = true # 是否开启RDB校验和
+
+# RDB持久化间隔。seconds表示间隔时间，changes表示键的变化次数。
+# 每seconds时间内有changes个键发生变化，则触发RDB快照
+interval = { seconds = 1, changes = 0 }
+version = 9                             # RDB版本
+enable_checksum = true                  # 是否开启RDB校验和
 
 [aof]
 enable = false               # 是否开启AOF持久化
+use_rdb_preamble = true      # 是否在AOF文件开头加入RDB版本信息
 file_path = "appendonly.aof" # AOF文件路径
 append_fsync = "everysec"    # AOF同步频率。可能为：always | everysec | no

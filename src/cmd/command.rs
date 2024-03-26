@@ -1,12 +1,14 @@
 use super::CmdExecutor;
 use crate::{
-    conf::{OFFSET, CONFIG},
+    conf::{CONFIG, OFFSET},
+    connection::Connection,
     db::Db,
     frame::Frame,
     util,
 };
 use anyhow::{anyhow, Error, Result};
 use bytes::Bytes;
+use tokio::sync::broadcast::Sender;
 use tracing::debug;
 
 // 当执行客户端redis-cli命令时，会执行该命令
@@ -126,13 +128,13 @@ impl CmdExecutor for Info {
                 let res = if CONFIG.replication.replicaof.is_none() {
                     format!(
                         "role:master\r\nmaster_replid:{}\r\nmaster_repl_offset:{}\r\n",
-                        CONFIG.replication.replid,
+                        CONFIG.server.run_id,
                         OFFSET.load(std::sync::atomic::Ordering::SeqCst)
                     )
                 } else {
                     format!(
                         "role:slave\r\nmaster_replid:{}\r\nmaster_repl_offset:{}\r\n",
-                        CONFIG.replication.replid,
+                        CONFIG.server.run_id,
                         OFFSET.load(std::sync::atomic::Ordering::SeqCst)
                     )
                 };
@@ -163,3 +165,35 @@ impl CmdExecutor for BgSave {
 }
 
 // pub struct BgRewriteAof;
+
+pub struct Auth {
+    pub username: Option<String>,
+    pub password: String,
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for Auth {
+    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+        Ok(None)
+    }
+
+    async fn hook(
+        &self,
+        conn: &mut Connection,
+        _replacate_msg_sender: &Sender<Frame>,
+        _write_cmd_sender: &Sender<Frame>,
+        _db: &Db,
+        _cmd_from_client: Frame,
+    ) -> anyhow::Result<()> {
+        if let Some(passwd) = &CONFIG.security.requirepass {
+            if &self.password != passwd {
+                conn.write_frame(Frame::Error("ERR invalid password".to_string()))
+                    .await?;
+                return Ok(());
+            }
+        }
+        conn.authed.store(true, std::sync::atomic::Ordering::SeqCst);
+        conn.write_frame(Frame::Simple("OK".to_string())).await?;
+        Ok(())
+    }
+}

@@ -4,32 +4,33 @@ mod rdb_load;
 mod rdb_save;
 
 pub use rdb_load::rdb_load;
-pub use rdb_save::rdb_save;
+pub use rdb_save::{rdb_save, rdb_save_in};
 
-const EOF: u8 = 0xff;
-const SELECTDB: u8 = 0xfe; // 只允许一个数据库
-const EXPIRETIME: u8 = 0xfd;
-const EXPIRETIME_MS: u8 = 0xfc;
-const RESIZEDB: u8 = 0xfb;
-const AUX: u8 = 0xfa;
+// Opcode
+const RDB_OPCODE_EOF: u8 = 0xff;
+const RDB_OPCODE_SELECTDB: u8 = 0xfe; // 只允许一个数据库
+const RDB_OPCODE_EXPIRETIME: u8 = 0xfd;
+const RDB_OPCODE_EXPIRETIME_MS: u8 = 0xfc;
+const RDB_OPCODE_RESIZEDB: u8 = 0xfb;
+const RDB_OPCODE_AUX: u8 = 0xfa;
 
 // 进行类型编码时，如果是252(EXPIRETIME_MS)，则后面的数据是过期时间，如果是以下值，则后面的数据是该类型的kv编码
-const RUREDIS_RDB_TYPE_STRING: u8 = 0;
-const RUREDIS_RDB_TYPE_LIST: u8 = 1;
-const RUREDIS_RDB_TYPE_SET: u8 = 2;
-const RUREDIS_RDB_TYPE_ZSET: u8 = 3;
-const RUREDIS_RDB_TYPE_HASH: u8 = 4;
-const RUREDIS_RDB_TYPE_ZIPMAP: u8 = 9;
-const RUREDIS_RDB_TYPE_ZIPLIST: u8 = 10;
-const RUREDIS_RDB_TYPE_INTSET: u8 = 11;
-const RUREDIS_RDB_TYPE_ZSET_ZIPLIST: u8 = 12;
-const RUREDIS_RDB_TYPE_HASH_ZIPLIST: u8 = 13;
-const RUREDIS_RDB_TYPE_LIST_QUICKLIST: u8 = 14;
+const RDB_TYPE_STRING: u8 = 0;
+const RDB_TYPE_LIST: u8 = 1;
+const RDB_TYPE_SET: u8 = 2;
+const RDB_TYPE_ZSET: u8 = 3;
+const RDB_TYPE_HASH: u8 = 4;
+const RDB_TYPE_ZIPMAP: u8 = 9;
+const RDB_TYPE_ZIPLIST: u8 = 10;
+const RDB_TYPE_INTSET: u8 = 11;
+const RDB_TYPE_ZSET_ZIPLIST: u8 = 12;
+const RDB_TYPE_HASH_ZIPLIST: u8 = 13;
+const RDB_TYPE_LIST_QUICKLIST: u8 = 14;
 
 // 进行长度编码时，如果开头2bit是11，则后面的数据不是字符串，而是特殊的编码格式
-const RUREDIS_RDB_SPECTIAL_FORMAT_INT8: u8 = 0;
-const RUREDIS_RDB_SPECTIAL_FORMAT_INT16: u8 = 1;
-const RUREDIS_RDB_SPECTIAL_FORMAT_INT32: u8 = 2;
+const RDB_SPECTIAL_FORMAT_INT8: u8 = 0;
+const RDB_SPECTIAL_FORMAT_INT16: u8 = 1;
+const RDB_SPECTIAL_FORMAT_INT32: u8 = 2;
 
 #[cfg(test)]
 mod test_rdb {

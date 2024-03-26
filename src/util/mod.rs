@@ -1,6 +1,7 @@
 mod aof;
 mod rdb;
 mod repl_log;
+mod test_util;
 
 use crate::db::Db;
 use anyhow::{anyhow, Result};

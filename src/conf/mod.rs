@@ -3,29 +3,27 @@
 /// 2. 如果提供了配置文件，读取配置文件并更新
 /// 3. 如果命令行参数有 --server.addr 之类的配置项，merge 该配置
 /// 4. 如果环境变量有 SERVER_ADDR 之类配置，进行 merge
-mod serialize;
-
+// mod serialize;
 use crate::{
     cli::Cli,
     db::{Db, DbInner},
     frame::Frame,
-    replicaof::enable_replicaof,
+    replicaof::start_replicaof,
     util,
 };
-use bytes::Bytes;
 use clap::Parser;
-use crossbeam::{atomic::AtomicCell, queue::ArrayQueue, sync::ShardedLock};
 use rand::Rng;
-use serde_with::serde_as;
-use std::{
-    collections::VecDeque,
-    fmt::Display,
-    sync::{atomic::AtomicU64, Arc},
-};
+use serde::Deserialize;
+use std::sync::{atomic::AtomicU64, Arc};
 use tokio::{
     select,
     sync::{broadcast::Sender, Mutex, RwLockWriteGuard},
+    time::Duration,
 };
+
+// 主服务器的run id
+pub static REPLID: once_cell::sync::Lazy<Arc<Mutex<Option<String>>>> =
+    once_cell::sync::Lazy::new(|| Arc::new(Mutex::new(None)));
 
 pub static CONFIG: once_cell::sync::Lazy<Arc<Conf>> =
     once_cell::sync::Lazy::new(|| Arc::new(Conf::new()));
@@ -38,56 +36,66 @@ pub static OFFSET: AtomicU64 = AtomicU64::new(0);
 pub static REPLI_BACKLOG: once_cell::sync::Lazy<util::RepliBackLog> =
     once_cell::sync::Lazy::new(|| util::RepliBackLog::new(1024));
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Conf {
-    #[serde(rename = "server")]
     pub server: ServerConf,
-    #[serde(rename = "security")]
     pub security: SecurityConf,
-    #[serde(rename = "replication")]
     pub replication: ReplicationConf,
-    #[serde(rename = "rdb")]
     pub rdb: RDBConf,
-    #[serde(rename = "aof")]
     pub aof: AOFConf,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(rename = "server")]
 pub struct ServerConf {
     pub port: u16,
+    #[serde(skip)]
+    pub run_id: String, // 服务器的运行ID。由40个随机字符组成
     pub expire_check_interval_secs: u64, // 检查过期键的周期
+    pub log_level: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(rename = "security")]
 pub struct SecurityConf {
     pub requirepass: Option<String>, // 访问密码
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
+#[serde(rename = "replication")]
 pub struct ReplicationConf {
-    pub replicaof: Option<ShardedLock<String>>, // 主服务器的地址
-    pub replid: String,                         // 服务器的运行ID。由40个随机字符组成
-    pub max_replicate: u64,                     // 最多允许多少个从服务器连接到当前服务器
+    pub replicaof: Option<String>,  // 主服务器的地址
+    pub max_replicate: u64,         // 最多允许多少个从服务器连接到当前服务器
     pub masterauth: Option<String>, // 主服务器密码，设置该值之后，当从服务器连接到主服务器时会发送该值
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(rename = "rdb")]
 pub struct RDBConf {
-    pub enable: bool,          // 是否启用RDB持久化
-    pub file_path: String,     // RDB文件路径
-    pub version: u32,          // RDB版本号
-    pub enable_checksum: bool, // 是否启用RDB校验和
+    pub enable: bool,               // 是否启用RDB持久化
+    pub file_path: String,          // RDB文件路径
+    pub interval: Option<Interval>, // RDB持久化间隔。格式为"seconds changes"，seconds表示间隔时间，changes表示键的变化次数
+    pub version: u32,               // RDB版本号
+    pub enable_checksum: bool,      // 是否启用RDB校验和
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
+pub struct Interval {
+    pub seconds: u64,
+    pub changes: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename = "aof")]
 pub struct AOFConf {
     pub enable: bool, // 是否启用AOF持久化
+    pub use_rdb_preamble: bool,
     pub file_path: String,
-    #[serde(rename = "append_fsync")]
     pub append_fsync: AppendFSync,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(rename = "append_fsync")]
 pub enum AppendFSync {
     EverySec,
     Always,
@@ -118,49 +126,71 @@ impl Conf {
             .set_override_option("rdb.file_path", cli.rdb_path)
             .expect("Failed to set rdb file path");
 
-        // 4. 运行时配置
-        let replid: String = rand::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(40)
-            .map(char::from) // 将u8转换为char
-            .collect(); // 直接收集到String中
-
-        config_builder
-            .set_override("replication.replid", replid)
-            .expect("Failed to set replid")
+        let mut config: Conf = config_builder
             .build()
             .expect("Failed to load config")
             .try_deserialize()
-            .expect("Failed to deserialize config")
+            .expect("Failed to deserialize config");
+
+        // 4. 运行时配置
+        let run_id: String = rand::thread_rng()
+            .sample_iter(&rand::distributions::Alphanumeric)
+            .take(40)
+            .map(char::from)
+            .collect();
+
+        config.server.run_id = run_id;
+
+        config
     }
 
     pub fn may_enable_replicaof(
         &self,
         db: Db,
-        psync_to_others_sender: Sender<Frame>,
-        others_to_psync_sender: Sender<Frame>,
+        replacate_msg_sender: Sender<Frame>,
+        write_cmd_sender: Sender<Frame>,
     ) {
-        if let Some(master_addr) = &self.replication.replicaof {
-            let master_addr = master_addr
-                .read()
-                .expect("Failed to read master_addr")
-                .clone();
+        if let Some(master_addr) = self.replication.replicaof.clone() {
             tokio::spawn(async move {
-                enable_replicaof(
-                    master_addr,
-                    db,
-                    psync_to_others_sender,
-                    others_to_psync_sender,
-                )
-                .await;
+                if let Err(e) =
+                    start_replicaof(master_addr, &db, replacate_msg_sender, write_cmd_sender).await
+                {
+                    panic!("Failed to enable replicaof: {:?}", e);
+                }
             });
         }
     }
 
-    pub fn may_enable_rdb(&self, db: &mut RwLockWriteGuard<DbInner>) {
+    pub fn may_enable_rdb(
+        &self,
+        db: &mut RwLockWriteGuard<DbInner>,
+        mut write_cmd_receiver: tokio::sync::broadcast::Receiver<Frame>,
+    ) {
         // AOF持久化优先级高于RDB持久化，当AOF持久化开启时，不加载RDB文件
         if !self.rdb.enable || self.aof.enable {
             return;
+        }
+
+        if let Some(Interval { seconds, changes }) = self.rdb.interval {
+            let db = db.clone();
+            tokio::spawn(async move {
+                let mut changes_now = 0;
+                let mut interval = tokio::time::interval(Duration::from_secs(seconds));
+                loop {
+                    tokio::select! {
+                        _ = interval.tick() => {
+                            if changes_now >= changes {
+                                let _ = util::rdb_save(db.clone());
+                            }
+                        }
+                        cmd = write_cmd_receiver.recv() => {
+                            if cmd.is_ok() {
+                                changes_now += 1;
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         match util::rdb_load(db) {

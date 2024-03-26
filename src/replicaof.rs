@@ -1,5 +1,6 @@
 use crate::{
-    conf::{CONFIG, OFFSET},
+    conf::{CONFIG, OFFSET, REPLID},
+    connection::Connection,
     db::Db,
     frame::Frame,
     stream::FrameHandler,
@@ -8,71 +9,111 @@ use crate::{
 use anyhow::{bail, Result};
 use bytes::Bytes;
 use std::sync::atomic::Ordering;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-    select,
-    sync::broadcast::Sender,
-};
+use tokio::{io::AsyncReadExt, net::TcpStream, sync::broadcast::Sender};
 
 // 连接master server，开始主从复制
-pub async fn enable_replicaof(
+pub async fn start_replicaof(
     master_addr: String,
-    db: Db,
-    psync_to_others_sender: Sender<Frame>,
-    others_to_psync_sender: Sender<Frame>,
-) {
-    let mut to_master = TcpStream::connect(&master_addr)
-        .await
-        .expect("Fail to connect to master.");
+    db: &Db,
+    replacate_msg_sender: Sender<Frame>,
+    write_cmd_sender: Sender<Frame>,
+) -> anyhow::Result<()> {
+    let mut to_master = Connection::connect(&master_addr).await?;
 
-    // 三路握手，与master server建立连接。如果连接失败，则尝试重新连接。如果超过三次握手失败，则退出程序
-    let mut retry = 3;
-    while let Err(e) = replicaof_hanshake(&mut to_master, CONFIG.server.port).await {
-        tracing::error!("Fail to handshake with master: {}", e);
-        let _ = to_master.shutdown().await;
-        to_master = TcpStream::connect(&master_addr)
-            .await
-            .expect("Fail to connect to master.");
-        retry -= 1;
-        if retry == 0 {
-            panic!("Fail to handshake with master.");
-        }
-    }
+    // 三路握手，与master server建立连接。
+    replicaof_hanshake(&mut to_master, CONFIG.server.port).await?;
 
-    loop {
-        // 处理master server发送过来的命令
-        match handle_master_connection(
-            &mut to_master,
-            &db,
-            &psync_to_others_sender,
-            &others_to_psync_sender,
-        )
-        .await
-        {
-            Err(e) => {
-                let _ = to_master.write_frame(Frame::Error(e.to_string())).await;
+    let replid = REPLID.lock().await.clone();
+    if let Some(replid) = replid {
+        // 非首次复制
+
+        // 发送之前从master server接收到的REPLID
+        to_master
+            .write_frame(
+                vec![
+                    "PSYNC".into(),
+                    replid.into(),
+                    format!("{}", OFFSET.load(Ordering::SeqCst)).into(),
+                ]
+                .into(),
+            )
+            .await?;
+
+        if let Some(Frame::Simple(s)) = to_master.read_frame().await? {
+            if s.starts_with("FULLRESYNC") {
+                // 如果master server返回FULLRESYNC，则进行全量复制
+                let replid = s.split_whitespace().nth(1).unwrap_or_default();
+                full_replication(&mut to_master, db, replid).await?;
+                tracing::info!("Receive '{}'. Start full replicate sync.", s);
+            } else if s.starts_with("CONTINUE") {
+                // 如果master server返回CONTINUE，则继续增量复制
+                tracing::info!("Receive '{}'. Perform partial replicate sync.", s);
+            } else {
+                bail!(
+                    "Master server should respond 'FULLRESYNC' or 'CONTINUE' but got {:?}",
+                    s
+                );
             }
-            Ok(Some(())) => {}
-            Ok(None) => break,
+        } else {
+            bail!("Master server responds invaildly.");
+        }
+    } else {
+        // 首次复制
+
+        // send {PSYNC ? -1}
+        to_master
+            .write_frame(vec!["PSYNC".into(), "?".into(), "-1".into()].into())
+            .await?;
+
+        // recv {FULLRESYNC <REPL_ID> <offset>}
+        if let Some(Frame::Simple(s)) = to_master.read_frame().await? {
+            if s.starts_with("FULLRESYNC") {
+                tracing::info!("Receive '{}'. Perform full replicate sync.", s);
+                let replid = s.split_whitespace().nth(1).unwrap_or_default();
+                full_replication(&mut to_master, db, replid).await?;
+            } else {
+                bail!("Master server should respond 'FULLRESYNC' but got {:?}", s);
+            }
+        } else {
+            bail!("Master server responds invaildly.");
         }
     }
+
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+    loop {
+        tokio::select! {
+            // 每隔1秒向master server发送REPLCONF ACK <replication_offset>命令
+            _ = interval.tick() => {
+                to_master
+                    .write_frame(
+                        vec![
+                            "REPLCONF".into(),
+                            "ACK".into(),
+                            format!("{}", OFFSET.load(Ordering::SeqCst)).into(),
+                        ]
+                        .into(),
+                    )
+                    .await?;
+            }
+            // 处理master server发送过来的命令
+            resp = handle_master_connection(&mut to_master, db, &replacate_msg_sender, &write_cmd_sender) => {
+                match resp {
+                    Err(e) => {
+                        let _ = to_master.write_frame(Frame::Error(e.to_string())).await;
+                    }
+                    Ok(Some(())) => {}
+                    Ok(None) => break,
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
-async fn full_replication(to_master: &mut TcpStream, db: &Db) -> Result<()> {
-    // send {PSYNC ? -1}
-    to_master
-        .write_frame(vec!["PSYNC".into(), "?".into(), "-1".into()].into())
-        .await?;
-    // recv {FULLRESYNC <REPL_ID> 0}
-    if let Some(Frame::Simple(s)) = to_master.read_frame().await? {
-        if !s.starts_with("FULLRESYNC") {
-            bail!("Fail to replicate.");
-        }
-        tracing::info!("Successfully replicate. {}", s);
-    } else {
-        bail!("Fail to replicate.");
-    }
+async fn full_replication(to_master: &mut Connection, db: &Db, replid: &str) -> Result<()> {
+    // 记录主服务器的ID
+    *REPLID.lock().await = Some(replid.to_string());
 
     // 从master server接收RDB文件，并写入本地
     let rdb = get_rdb(to_master).await.expect("Fail to get rdb");
@@ -81,60 +122,12 @@ async fn full_replication(to_master: &mut TcpStream, db: &Db) -> Result<()> {
         .expect("Fail to write rdb.");
 
     // 从本地加载RDB文件
-    let mut retry = 3;
-    while let Err(e) = util::rdb_load(&mut db.inner.write().await) {
-        tracing::error!("{} Trying again.", e);
-        retry -= 1;
-        if retry == 0 {
-            panic!("Fail to load rdb.");
-        }
-    }
-
-    // 从master server接收RDB文件，并写入本地
-    let rdb = get_rdb(to_master).await?;
-    tokio::fs::write("dump.rdb", rdb).await?;
+    util::rdb_load(&mut db.inner.write().await)?;
 
     Ok(())
 }
 
-async fn partial_replication(to_master: &mut TcpStream, db: &Db, replid: String) -> Result<()> {
-    // // send {PSYNC <REPL_ID> <OFFSET>}
-    // to_master
-    //     .write_frame(
-    //         vec![
-    //             "PSYNC".into(),
-    //             replid.into(),
-    //             OFFSET.load(Ordering::SeqCst).into(),
-    //         ]
-    //         .into(),
-    //     )
-    //     .await?;
-    // // recv {CONTINUE}
-    // if to_master.read_frame().await? != Some(Frame::Simple("CONTINUE".to_string())) {
-    //     bail!("Fail to replicate.");
-    // }
-    //
-    // // 从master server接收增量数据
-    // loop {
-    //     let frame = to_master.read_frame().await?;
-    //     if let Some(frame) = frame {
-    //         tracing::info!("received from master: {}", frame);
-    //         let cmd = frame.clone().parse_cmd()?;
-    //         if let Some(res) = cmd.replicate_execute(db).await? {
-    //             tracing::info!("sending to master: {}", res);
-    //             to_master.write_frame(res).await?;
-    //         }
-    //         cmd.hook(to_master, db, frame.clone()).await?;
-    //         OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
-    //     } else {
-    //         break;
-    //     }
-    // }
-
-    Ok(())
-}
-
-async fn replicaof_hanshake(to_master: &mut TcpStream, port: u16) -> Result<()> {
+async fn replicaof_hanshake(to_master: &mut Connection, port: u16) -> Result<()> {
     /* First Stage: 发送PING命令 */
 
     // 向master server 发送PING
@@ -209,19 +202,19 @@ async fn replicaof_hanshake(to_master: &mut TcpStream, port: u16) -> Result<()> 
     Ok(())
 }
 
-async fn get_rdb(to_master: &mut TcpStream) -> Result<Vec<u8>> {
-    let _ = to_master.read_u8().await;
+async fn get_rdb(to_master: &mut Connection) -> Result<Vec<u8>> {
+    let _ = to_master.stream.read_u8().await;
     let rdb_len = to_master.read_decimal().await?;
     let mut buf = vec![0u8; rdb_len as usize];
-    to_master.read_exact(&mut buf).await?;
+    to_master.stream.read_exact(&mut buf).await?;
     Ok(buf)
 }
 
 async fn handle_master_connection(
-    stream: &mut TcpStream,
+    stream: &mut Connection,
     db: &Db,
-    psync_to_others_sender: &Sender<Frame>,
-    others_to_psync_sender: &Sender<Frame>,
+    replacate_msg_sender: &Sender<Frame>,
+    write_cmd_sender: &Sender<Frame>,
 ) -> Result<Option<()>> {
     if let Some(frame) = stream.read_frame().await? {
         tracing::info!("received from master: {}", frame);
@@ -233,8 +226,8 @@ async fn handle_master_connection(
         }
         cmd.hook(
             stream,
-            psync_to_others_sender,
-            others_to_psync_sender,
+            replacate_msg_sender,
+            write_cmd_sender,
             db,
             frame.clone(),
         )

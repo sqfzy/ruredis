@@ -3,36 +3,15 @@
 use super::CmdExecutor;
 use crate::{
     conf::{CONFIG, OFFSET, REPLI_BACKLOG},
+    connection::Connection,
     db::Db,
     frame::Frame,
-    stream::FrameHandler,
     util::{self, bytes_to_string, bytes_to_u64},
 };
 use anyhow::Result;
-use bytes::BufMut;
+use bytes::Bytes;
 use std::{sync::atomic::Ordering, time::Duration};
-use tokio::{io::AsyncWriteExt, sync::broadcast::Sender};
-
-pub struct Auth {
-    pub username: Option<String>,
-    pub password: String,
-}
-
-#[async_trait::async_trait]
-impl CmdExecutor for Auth {
-    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
-        Ok(None)
-    }
-
-    async fn replicate_execute(&self, _db: &Db) -> anyhow::Result<Option<Frame>> {
-        if let Some(passwd) = &CONFIG.security.requirepass {
-            if self.password != *passwd {
-                return Ok(Some(Frame::Error("ERR invalid password".to_string())));
-            }
-        }
-        Ok(Some(Frame::Simple("OK".to_string())))
-    }
-}
+use tokio::sync::broadcast::{Receiver, Sender};
 
 #[derive(Default)]
 pub enum Replconf {
@@ -41,28 +20,77 @@ pub enum Replconf {
     // replication收到该命令后发送自身的ack offset
     // *3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$1\r\n*\r\n
     GetAck,
+    // master收到该命令后，比较自身与repliacate的offset，如果不相同，则需要同步
+    Ack(u64),
 }
 
 #[async_trait::async_trait]
 impl CmdExecutor for Replconf {
     async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
-        // dbg!("respond1");
-        let res = match self {
-            Replconf::Default => Frame::Simple("OK".to_string()),
-            // *3\r\n$8\r\nreplconf\r\n$6\r\nack\r\n$<len>\r\n<num>\r\n
-            Replconf::GetAck => Frame::from(vec![
-                "REPLCONF".into(),
-                "ACK".into(),
-                OFFSET.load(Ordering::SeqCst).to_string().into(),
-            ]),
-        };
-        Ok(Some(res))
+        Ok(None)
     }
 
-    async fn replicate_execute(&self, db: &Db) -> anyhow::Result<Option<Frame>> {
-        self.execute(db).await
+    async fn hook(
+        &self,
+        conn: &mut Connection,
+        replacate_msg_sender: &Sender<Frame>,
+        write_cmd_sender: &Sender<Frame>,
+        db: &Db,
+        _frame: Frame,
+    ) -> anyhow::Result<()> {
+        match self {
+            Replconf::Default => conn.write_frame(Frame::Simple("OK".to_string())).await?,
+            Replconf::GetAck => {
+                conn.write_frame(Frame::from(vec![
+                    "REPLCONF".into(),
+                    "ACK".into(),
+                    OFFSET.load(Ordering::SeqCst).to_string().into(),
+                ]))
+                .await?;
+            }
+            Replconf::Ack(repli_offset) => {
+                let offset = OFFSET.load(Ordering::SeqCst);
+                let diff = offset - repli_offset;
+                if diff == 0 {
+                    return Ok(());
+                }
+
+                if let Some(cmds) = REPLI_BACKLOG.get_from_end(diff as usize).await {
+                    conn.write_all(&cmds).await?;
+                } else {
+                    // 如果缺失的命令数量大于backlog的容量，则进行全量复制
+                    perform_full_resync(conn, db, offset).await?;
+                }
+            }
+        }
+        Ok(())
     }
 }
+
+// TODO:
+struct Replicaof {
+    pub host: String,
+    pub port: u16,
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for Replicaof {
+    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
+        Ok(None)
+    }
+}
+
+// crate::replicaof::start_replicaof(
+//     format!(
+//         "{}:{}",
+//         bytes_to_string(host.clone())?,
+//         bytes_to_string(port.clone())?
+//     ),
+//     db,
+//     replacate_msg_sender.clone(),
+//     write_cmd_sender.clone(),
+// )
+// .await?
 
 ///  master收到该命令后开始同步数据，例如：
 ///  *2\r\n$5\r\npsync\r\n$1\r\n0\r\n
@@ -75,53 +103,43 @@ pub struct Psync {
 
 #[async_trait::async_trait]
 impl CmdExecutor for Psync {
-    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+    async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
         Ok(None)
     }
 
     async fn hook(
         &self,
-        stream: &mut tokio::net::TcpStream,
-        replacate_msg_sender: &Sender<Frame>,
+        conn: &mut Connection,
+        replicate_msg_sender: &Sender<Frame>,
         write_cmd_sender: &Sender<Frame>,
         db: &Db,
         _frame: Frame,
     ) -> anyhow::Result<()> {
-        // TODO: Auth验证
+        // 如果设置了密码，但是没有认证，则返回错误
+        if CONFIG.security.requirepass.is_some() && !conn.authed.fetch_or(false, Ordering::SeqCst) {
+            conn.write_frame(Frame::Error("NOAUTH Authentication required.".to_string()))
+                .await?;
+            return Ok(());
+        }
 
         let old_offset = OFFSET.load(Ordering::SeqCst);
-        stream
-            .write_frame(Frame::Simple(format!(
-                "FULLRESYNC {} {:?}",
-                CONFIG.replication.replid, old_offset
-            )))
-            .await?;
 
-        if let Some(replid) = &self.replid {
+        if let Some(_replid) = self.replid.clone() {
             // 如果replid不为None，则进行增量复制
+            conn.write_frame(Frame::Simple("CONTINUE".to_string()))
+                .await?;
 
-            // 如果ack_offset - offset >
+            let diff = OFFSET.load(Ordering::SeqCst) - self.repli_offset;
+
+            if let Some(cmds) = REPLI_BACKLOG.get_from_end(diff as usize).await {
+                conn.write_all(&cmds).await?;
+            } else {
+                // 如果缺失的命令数量大于backlog的容量，则进行全量复制
+                perform_full_resync(conn, db, old_offset).await?;
+            }
         } else {
             // 如果replid为None，则进行全量复制
-
-            // 保存rdb并发送给replicate
-            util::rdb_save(db.inner.read().await.clone())?;
-            let rdb = tokio::fs::read("dump.rdb").await?;
-            let mut buf = format!("${}\r\n", rdb.len()).into_bytes();
-            buf.extend(rdb);
-            // $<length_of_file>\r\n<contents_of_file>
-            stream.write_all(&buf).await?;
-            stream.flush().await?;
-
-            // 当生成rdb时，可能有新的命令写入，所以需要把新的命令发送给master
-            let len_should_send = OFFSET.load(Ordering::SeqCst) - old_offset;
-            if let Some(cmds_shoud_send) =
-                REPLI_BACKLOG.get_from_end(len_should_send as usize).await
-            {
-                stream.write_all(&cmds_shoud_send).await?;
-            } else {
-                tracing::error!("Failed to get cmds from end of backlog");
-            }
+            perform_full_resync(conn, db, old_offset).await?;
         }
 
         // let empty_rdb = [
@@ -138,41 +156,89 @@ impl CmdExecutor for Psync {
         let mut propagate_rx = write_cmd_sender.subscribe();
         // 对每个握手后的replication都进行持久化连接。
         loop {
-            // TODO: 命令缓冲区
+            tokio::select! {
+                // 传播写命令
+                frame = recv_write_command(&mut propagate_rx) => {
+                    let frame = frame?;
 
-            // 每当收到一个"write" command通知，则发送给所有的replication
-            // "REPLCONF GETACK *", "SET <key> <value>", "DEL <key>", "EXPIRE <key> <seconds>"...
-            let frame = propagate_rx.recv().await?;
+                    println!("frame: {:?}", frame.clone());
+                    conn.write_frame(frame.clone()).await?;
+                    conn.flush().await?;
 
-            // 记录发送给replicate的命令，不管replicate是否成功接收
-            REPLI_BACKLOG.force_append(frame.to_bytes()).await;
-            // 记录发送给replicate的字节数，不管replicate是否成功接收
-            OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
-            tracing::info!("sending to replicate: {}", frame);
-
-            stream.write_frame(frame.clone()).await?;
-            stream.flush().await?;
-
-            // 如果向replication发送的命令是"REPLCONF GETACK *"
-            if frame
-                .to_string()
-                .to_lowercase()
-                .starts_with(r#"*3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$1\r\n*\r\n"#)
-            {
-                // *3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$<len>\r\n<num>\r\n
-                // propagate_tx.send(Frame::from(vec![
-                //     "replconf".into(),
-                //     "ack".into(),
-                //     "50".into(),
-                // ]))?;
-                // 把从replication接收到的数据发送到其它异步任务（Wait命令的异步任务）
-                if let Some(res) = stream.read_frame().await? {
-                    tracing::info!("received from replicate: {}", frame);
-                    replacate_msg_sender.send(res)?;
+                    if frame
+                        .to_string()
+                        .to_lowercase()
+                        .starts_with(r#"*3\r\n$8\r\nreplconf\r\n$6\r\ngetack\r\n$1\r\n*\r\n"#)
+                    {
+                        // 把从replication接收到的数据发送到其它异步任务（Wait命令的异步任务）
+                        if let Some(res) = conn.read_frame().await? {
+                            tracing::info!("received from replicate: {}", frame);
+                            replicate_msg_sender.send(res)?;
+                        }
+                    }
+                },
+                // 回复心跳检测
+                frame = conn.read_frame() => {
+                    if let Some(frame) = frame? {
+                        tracing::info!("received from replicate: {}", frame);
+                        let cmd = frame.clone().parse_cmd()?;
+                        if let Some(res) = cmd.execute(db).await? {
+                            tracing::info!("sending to replicate: {}", res);
+                            conn.write_frame(res).await?;
+                        }
+                        cmd.hook(conn, replicate_msg_sender, write_cmd_sender, db, frame).await?;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
+
+        Ok(())
     }
+}
+
+async fn recv_write_command(propagate_rx: &mut Receiver<Frame>) -> anyhow::Result<Frame> {
+    println!("debug1");
+    let frame = propagate_rx.recv().await?;
+    // 记录发送给replicate的命令，不管replicate是否成功接收
+    REPLI_BACKLOG.force_append(frame.to_bytes()).await;
+    // 记录发送给replicate的字节数，不管replicate是否成功接收
+    OFFSET.fetch_add(frame.num_of_bytes(), Ordering::SeqCst);
+
+    tracing::info!("sending to replicate: {}", frame);
+    Ok(frame)
+}
+
+async fn perform_full_resync(
+    conn: &mut Connection,
+    db: &Db,
+    old_offset: u64,
+) -> anyhow::Result<()> {
+    conn.write_frame(Frame::Simple(format!(
+        "FULLRESYNC {} {:?}",
+        CONFIG.server.run_id, old_offset
+    )))
+    .await?;
+
+    // 保存rdb并发送给replicate
+    util::rdb_save(db.inner.read().await.clone())?;
+    let rdb = tokio::fs::read("dump.rdb").await?;
+    let mut buf = format!("${}\r\n", rdb.len()).into_bytes();
+    buf.extend(rdb);
+    // $<length_of_file>\r\n<contents_of_file>
+    conn.write_all(&buf).await?;
+    conn.flush().await?;
+
+    // 当生成rdb时，可能有新的命令写入，所以需要把新的命令发送给master
+    let len_should_send = OFFSET.load(Ordering::SeqCst) - old_offset;
+    if let Some(cmds_shoud_send) = REPLI_BACKLOG.get_from_end(len_should_send as usize).await {
+        conn.write_all(&cmds_shoud_send).await?;
+    } else {
+        tracing::error!("Failed to get cmds from end of backlog");
+    }
+
+    Ok(())
 }
 
 // master接收到该命令后，向所有的replication发送"REPLCONF GETACK *"
@@ -191,7 +257,7 @@ impl CmdExecutor for Wait {
 
     async fn hook(
         &self,
-        stream: &mut tokio::net::TcpStream,
+        conn: &mut Connection,
         replacate_msg_sender: &Sender<Frame>,
         write_cmd_sender: &Sender<Frame>,
         _db: &Db,
@@ -243,8 +309,7 @@ impl CmdExecutor for Wait {
         OFFSET.store(max_ack_offset, Ordering::SeqCst); // 更新ack offset
 
         // 返回同步的replication数量
-        stream
-            .write_frame(Frame::Integer(ack_replicas as u64))
+        conn.write_frame(Frame::Integer(ack_replicas as u64))
             .await?;
 
         Ok(())

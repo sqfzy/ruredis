@@ -3,6 +3,7 @@
 mod cli;
 mod cmd;
 mod conf;
+mod connection;
 mod db;
 mod frame;
 mod init;
@@ -44,13 +45,6 @@ mod util;
 
 // INFO: 已有的feature:
 // 1. RDB和AOF持久化
-
-// asd asd
-// (error) ERR unknown command 'asd', with args beginning with: 'asd'
-// get foo a
-// (error) ERR wrong number of arguments for 'get' command
-// set foo bar bar2
-// (error) ERR syntax error
 
 #[tokio::main]
 async fn main() {

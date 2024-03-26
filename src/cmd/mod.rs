@@ -2,7 +2,7 @@ mod command;
 mod replicate;
 mod string_cmd;
 
-use crate::{db::Db, frame::Frame};
+use crate::{connection::Connection, db::Db, frame::Frame};
 use tokio::sync::broadcast::Sender;
 
 pub use command::*;
@@ -23,7 +23,7 @@ pub trait CmdExecutor: Send + Sync {
 
     async fn hook(
         &self,
-        _stream: &mut tokio::net::TcpStream,
+        _conn: &mut Connection,
         _replacate_msg_sender: &Sender<Frame>,
         _write_cmd_sender: &Sender<Frame>,
         _db: &Db,

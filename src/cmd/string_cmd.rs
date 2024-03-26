@@ -1,12 +1,7 @@
 use super::CmdExecutor;
-use crate::{
-    conf::{CONFIG, REPLI_BACKLOG},
-    db::Db,
-    frame::Frame,
-};
+use crate::{conf::CONFIG, connection::Connection, db::Db, frame::Frame};
 use anyhow::Result;
 use bytes::Bytes;
-use crossbeam::queue::ArrayQueue;
 use std::time::Duration;
 use tokio::sync::broadcast::Sender;
 use tracing::debug;
@@ -56,7 +51,7 @@ impl CmdExecutor for Set {
 
     async fn hook(
         &self,
-        _stream: &mut tokio::net::TcpStream,
+        _conn: &mut Connection,
         _replacate_msg_sender: &Sender<Frame>,
         write_cmd_sender: &Sender<Frame>,
         _db: &Db,
