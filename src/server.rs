@@ -38,7 +38,7 @@ pub async fn run() {
         .await;
 
     // 如果配置了RDB持久化，则加载RDB文件。(当RDB和AOF同时开启时，只会加载AOF文件)
-    CONFIG.may_enable_rdb(&mut db.inner.write().await, write_cmd_receiver);
+    CONFIG.may_enable_rdb(db.clone(), write_cmd_receiver);
 
     // 开启一个异步任务，定时检查过期键
     util::check_expiration_periodical(
@@ -94,8 +94,8 @@ pub async fn run() {
 async fn handle(
     conn: &mut Connection,
     db: &Db,
-    psync_to_others_sender: &Sender<Frame>,
-    others_to_psync_sender: &Sender<Frame>,
+    replacate_msg_sender: &Sender<Frame>,
+    to_psync_sender: &Sender<Frame>,
     addr: SocketAddr,
 ) -> Result<Option<()>> {
     // util::server_test(&mut stream).await;
@@ -114,14 +114,8 @@ async fn handle(
         }
 
         // 执行命令钩子
-        cmd.hook(
-            conn,
-            psync_to_others_sender,
-            others_to_psync_sender,
-            db,
-            frame,
-        )
-        .await?;
+        cmd.hook(conn, replacate_msg_sender, to_psync_sender, db, frame)
+            .await?;
 
         Ok(Some(()))
     } else {

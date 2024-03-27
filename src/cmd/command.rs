@@ -152,10 +152,12 @@ pub struct BgSave;
 #[async_trait::async_trait]
 impl CmdExecutor for BgSave {
     async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
-        let db = db.inner.read().await.clone();
-        std::thread::spawn(|| match util::rdb_save(db) {
-            Ok(_) => tracing::info!("RDB file generated successfully!!!"),
-            Err(e) => tracing::error!("Failed to save RDB file: {:?}", e),
+        let db = db.clone();
+        tokio::spawn(async move {
+            match util::rdb_save(&db) {
+                Ok(_) => tracing::info!("RDB file generated successfully!!!"),
+                Err(e) => tracing::error!("Failed to save RDB file: {:?}", e),
+            }
         });
 
         Ok(Some(Frame::Simple(

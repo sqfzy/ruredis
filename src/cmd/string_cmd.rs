@@ -18,7 +18,7 @@ pub struct Get {
 impl CmdExecutor for Get {
     async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'GET'");
-        let frame = match db.inner.write().await.string_kvs.get(self.key.clone()) {
+        let frame = match db.inner.string_kvs.get(&self.key) {
             Some(value) => Frame::Bulk(value),
             // 键不存在，或已过期
             None => {
@@ -41,9 +41,8 @@ pub struct Set {
 impl CmdExecutor for Set {
     async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'SET'");
-        db.inner
-            .write()
-            .await
+        db.clone()
+            .inner
             .string_kvs
             .set(self.key.clone(), self.value.clone(), self.expire);
         Ok(Some(Frame::Simple("OK".to_string())))

@@ -222,7 +222,7 @@ async fn perform_full_resync(
     .await?;
 
     // 保存rdb并发送给replicate
-    util::rdb_save(db.inner.read().await.clone())?;
+    util::rdb_save(db)?;
     let rdb = tokio::fs::read("dump.rdb").await?;
     let mut buf = format!("${}\r\n", rdb.len()).into_bytes();
     buf.extend(rdb);

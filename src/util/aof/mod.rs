@@ -66,9 +66,8 @@ impl Aof {
 
     // TODO:
     pub async fn rewrite(db: &Db) -> anyhow::Result<()> {
-        let db = db.inner.read().await.clone();
         // 读取Db中的数据, 并写入到AOF文件中
-        super::rdb_save_in(db, &CONFIG.aof.file_path)?;
+        super::_rdb_save(db, &CONFIG.aof.file_path, CONFIG.rdb.enable_checksum)?;
         Ok(())
     }
 }

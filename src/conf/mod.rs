@@ -163,7 +163,7 @@ impl Conf {
 
     pub fn may_enable_rdb(
         &self,
-        db: &mut RwLockWriteGuard<DbInner>,
+        db: Db,
         mut write_cmd_receiver: tokio::sync::broadcast::Receiver<Frame>,
     ) {
         // AOF持久化优先级高于RDB持久化，当AOF持久化开启时，不加载RDB文件
@@ -180,7 +180,7 @@ impl Conf {
                     tokio::select! {
                         _ = interval.tick() => {
                             if changes_now >= changes {
-                                let _ = util::rdb_save(db.clone());
+                                let _ = util::rdb_save(&db);
                             }
                         }
                         cmd = write_cmd_receiver.recv() => {
@@ -193,7 +193,7 @@ impl Conf {
             });
         }
 
-        match util::rdb_load(db) {
+        match util::rdb_load(&db) {
             Ok(_) => {
                 tracing::info!("RDB file loaded successfully!!!");
             }

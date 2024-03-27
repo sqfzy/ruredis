@@ -1,61 +1,60 @@
-#![allow(dead_code)]
-
-// mod list_db;
-mod string_kvs;
+mod str;
 
 use bytes::Bytes;
-// use skiplist::SkipList;
-use std::{
-    collections::{HashMap, VecDeque},
-    sync::Arc,
-    time::SystemTime,
-};
+use dashmap::DashMap;
+use std::{collections::VecDeque, sync::Arc, time::SystemTime};
 
-use tokio::sync::RwLock;
+pub use str::Str;
 
 pub const MAX_KVPAIRS_NUMS: u64 = u64::MAX;
 
 #[derive(Debug, Clone)]
 pub struct Db {
-    pub inner: Arc<RwLock<DbInner>>,
+    pub inner: Arc<DbInner>,
 }
 
 #[derive(Debug, Clone)]
 pub struct DbInner {
-    pub string_kvs: KvPairs<String>,
+    pub string_kvs: KvPairs<Str>,
 }
 
 impl Db {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(RwLock::new(DbInner {
-                string_kvs: KvPairs::<String>(HashMap::new()),
-            })),
+            inner: Arc::new(DbInner {
+                string_kvs: KvPairs(DashMap::new()),
+            }),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct String;
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct List;
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZSet;
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Hash;
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Set;
-
 #[derive(Debug, Clone)]
-pub struct KvPairs<T: PartialEq + Eq>(pub HashMap<Bytes, Object<T>>);
+pub struct KvPairs<T: ObjValueCODEC + PartialEq + Eq>(pub DashMap<Bytes, Object<T>>);
 
 #[derive(Debug, Clone, Eq)]
-pub struct Object<T> {
-    pub value: ObjValue<T>,
+pub struct Object<T: ObjValueCODEC> {
+    pub value: T,
     pub expire_at: Option<SystemTime>, // None代表永不过期
 }
 
-impl<T: PartialEq + Eq> PartialEq for Object<T> {
+impl<T: ObjValueCODEC> Object<T> {
+    pub fn new(value: Bytes, expire_at: Option<SystemTime>) -> Self {
+        Self {
+            value: T::encode(value),
+            expire_at,
+        }
+    }
+
+    pub fn value(&self) -> Bytes {
+        self.value.decode()
+    }
+
+    pub fn set_value(&mut self, value: Bytes) {
+        self.value = T::encode(value);
+    }
+}
+
+impl<T: PartialEq + Eq + ObjValueCODEC> PartialEq for Object<T> {
     fn eq(&self, other: &Self) -> bool {
         if self.expire_at.is_none() && other.expire_at.is_none() {
             self.value == other.value
@@ -73,62 +72,31 @@ impl<T: PartialEq + Eq> PartialEq for Object<T> {
     }
 }
 
-// struct ZSetDb(RwLock<HashMap<String, ObjValueCODEC>>);
-//
-// struct HashDb(RwLock<HashMap<String, ObjValueCODEC>>);
-//
-// struct SetDb(RwLock<HashMap<String, ObjValueCODEC>>);
-
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ObjValue<T> {
-    Int(i64),
-    Raw(Bytes),
+pub enum List {
     LinkedList(VecDeque<Bytes>),
-    // SkipList(SkipList<Bytes>),
-    // TODO:  ZipList()
-    HT(HashMap<Bytes, Bytes>),
-    IntSet(VecDeque<i64>),
-    PhantomData(std::marker::PhantomData<T>),
+    // ZipList(Bytes),
 }
 
-// impl ObjValueCODEC<StringObj> {
-//     pub fn decode(value: &ObjValueCODEC<StringObj>) -> Bytes {
-//         match value {
-//             ObjValueCODEC::Raw(raw) => raw.clone() ,
-//             ObjValueCODEC::Int(i) =>  i.to_string().into(),
-//             _ => unreachable!("Server error: cann't get stringobj value because stringobj was encoded in wrong type")
-//
-//         }
-//     }
-//
-//     pub fn encode(value: Bytes) -> ObjValueCODEC<StringObj> {
-//         if let Ok(s) = std::str::from_utf8(&value) {
-//             if let Ok(i) = s.parse::<i64>() {
-//                 return ObjValueCODEC::Int(i);
-//             }
-//         }
-//         ObjValueCODEC::Raw(value)
-//     }
-// }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ZSet {
+    // SkipList(SkipList<Bytes>),
+    // ZipList(Bytes),
+}
 
-// impl ObjValueEncoding {
-//     pub fn stringobj_decode_value(&self) -> Option<Bytes> {
-//         match self {
-//             ObjValueEncoding::Raw(raw) => Some(raw.clone()),
-//             ObjValueEncoding::Int(i) => Some(i.to_string().into()),
-//             _ => {
-//                 tracing::error!("Server error: cann't get stringobj value because stringobj was encoded in wrong type");
-//                 None
-//             }
-//         }
-//     }
-//
-//     pub fn stringobj_encoding_value(value: Bytes) -> ObjValueEncoding {
-//         if let Ok(s) = std::str::from_utf8(&value) {
-//             if let Ok(i) = s.parse::<i64>() {
-//                 return ObjValueEncoding::Int(i);
-//             }
-//         }
-//         ObjValueEncoding::Raw(value)
-//     }
-// }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Hash {
+    // HashMap<Bytes, Bytes>,
+    // ZipList(Bytes),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Set {
+    // HashSet<Bytes>,
+    // IntSet
+}
+
+pub trait ObjValueCODEC {
+    fn encode(bytes: Bytes) -> Self;
+    fn decode(&self) -> Bytes;
+}

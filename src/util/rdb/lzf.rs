@@ -8,7 +8,7 @@ const MAX_LIT: usize = 1 << 5; // 最大字面量长度=32
 const MAX_OFF: usize = 1 << 13; //  最大偏移量。off <= 0001 1111 1111 1111, 高三位用来存放长度
 const MAX_REF: usize = (1 << 8) + (1 << 3); // 最大引用长度=264
 
-fn lzf_compress(input: &[u8]) -> Bytes {
+pub fn lzf_compress(input: &[u8]) -> Bytes {
     let mut output = BytesMut::with_capacity(input.len());
     // hash_table键：滑动窗口中的字节序列，值：滑动窗口中首个字节的索引
     let mut hash_table: HashMap<&[u8], usize> = HashMap::with_capacity(input.len());
@@ -137,7 +137,7 @@ fn lzf_compress(input: &[u8]) -> Bytes {
     output.freeze()
 }
 
-fn lzf_decompress(input: &[u8]) -> Bytes {
+pub fn lzf_decompress(input: &[u8]) -> Bytes {
     // NOTE: input: 5 a a b c d e (4,4) 0 f
     let mut output = BytesMut::with_capacity(input.len() * 2);
     let mut iidx = 0;

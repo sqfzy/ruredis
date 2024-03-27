@@ -1,10 +1,10 @@
 use super::*;
 use crate::{
     conf::CONFIG,
-    db::{self, DbInner, ObjValue, Object},
+    db::{Db, Object, Str},
 };
 use bytes::{BufMut, Bytes};
-use std::{io::Write, time::SystemTime};
+use std::{io::Write, time::UNIX_EPOCH};
 
 // REDIS  kvpair* EOF checksum
 // kvpair:
@@ -14,11 +14,11 @@ use std::{io::Write, time::SystemTime};
 // 1. int8|int16|int32(1B), num
 // 2. len, string
 
-pub fn rdb_save(db: DbInner) -> anyhow::Result<()> {
-    rdb_save_in(db, &CONFIG.rdb.file_path)
+pub fn rdb_save(db: &Db) -> anyhow::Result<()> {
+    _rdb_save(db, &CONFIG.rdb.file_path, CONFIG.rdb.enable_checksum)
 }
 
-pub fn rdb_save_in(db: DbInner, path: &str) -> anyhow::Result<()> {
+pub fn _rdb_save(db: &Db, path: &str, enable_checksum: bool) -> anyhow::Result<()> {
     let mut buf = Vec::with_capacity(1024);
     buf.extend_from_slice(b"REDIS");
     buf.put_u32(1); // 版本号
@@ -26,12 +26,12 @@ pub fn rdb_save_in(db: DbInner, path: &str) -> anyhow::Result<()> {
     buf.put_u32(0); // 选择0号数据库
 
     // 保存string_kv{kvs_with_expire[ObjValue::Raw_nums expire len key len data ObjValue::Int_nums expire len key int8/int16/int32 data]}
-    db.string_kvs.0.iter().for_each(|(k, obj)| {
-        encode_string_kv(&mut buf, k.clone(), obj);
-    });
+    for elem in &db.inner.string_kvs.0 {
+        encode_str_kv(&mut buf, elem.key().clone(), elem.value());
+    }
 
     buf.put_u8(RDB_OPCODE_EOF); // 结束标志
-    let checksum = if CONFIG.rdb.enable_checksum {
+    let checksum = if enable_checksum {
         crc::Crc::<u64>::new(&crc::CRC_64_REDIS).checksum(&buf)
     } else {
         0
@@ -45,12 +45,12 @@ pub fn rdb_save_in(db: DbInner, path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(super) fn encode_string_kv(buf: &mut Vec<u8>, key: Bytes, obj: &Object<db::String>) {
+pub(super) fn encode_str_kv(buf: &mut Vec<u8>, key: Bytes, obj: &Object<Str>) {
     let expire_at = obj.expire_at;
     if let Some(expire_at) = expire_at {
-        if let Ok(expire) = expire_at.duration_since(SystemTime::now()) {
+        if let Ok(expire) = expire_at.duration_since(UNIX_EPOCH) {
             buf.put_u8(RDB_OPCODE_EXPIRETIME_MS);
-            buf.put_u64(expire.as_millis() as u64);
+            buf.put_u64_le(expire.as_millis() as u64);
         } else {
             // 过期则忽略
             return;
@@ -59,11 +59,8 @@ pub(super) fn encode_string_kv(buf: &mut Vec<u8>, key: Bytes, obj: &Object<db::S
     buf.put_u8(RDB_TYPE_STRING);
     encode_key(buf, key);
     match &obj.value {
-        ObjValue::Int(i) => encode_int(buf, *i as i32),
-        ObjValue::Raw(s) => encode_raw(buf, s.clone()),
-        _ => unreachable!(
-            "Cann't get stringobj value type because stringobj was encoded in wrong type!!!"
-        ),
+        Str::Int(i) => encode_int(buf, *i as i32),
+        Str::Raw(s) => encode_raw(buf, s.clone()),
     }
 }
 

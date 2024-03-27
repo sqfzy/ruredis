@@ -122,7 +122,7 @@ async fn full_replication(to_master: &mut Connection, db: &Db, replid: &str) -> 
         .expect("Fail to write rdb.");
 
     // 从本地加载RDB文件
-    util::rdb_load(&mut db.inner.write().await)?;
+    util::rdb_load(db)?;
 
     Ok(())
 }
