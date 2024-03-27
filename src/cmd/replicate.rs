@@ -8,7 +8,7 @@ use crate::{
     frame::Frame,
     util::{self, bytes_to_string, bytes_to_u64},
 };
-use anyhow::Result;
+use anyhow::{Error, Result};
 use bytes::Bytes;
 use std::{sync::atomic::Ordering, time::Duration};
 use tokio::sync::broadcast::{Receiver, Sender};
@@ -24,6 +24,31 @@ pub enum Replconf {
     Ack(u64),
 }
 
+impl TryFrom<Vec<Bytes>> for Replconf {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> std::prelude::v1::Result<Self, Self::Error> {
+        let mut bulks = bulks.into_iter().skip(1);
+
+        if let Some(arg) = bulks.next() {
+            match arg.to_ascii_uppercase().as_slice() {
+                b"GETACK" => {
+                    return Ok(Replconf::GetAck);
+                }
+                b"ACK" => {
+                    if let Some(offset) = bulks.next() {
+                        let offset = bytes_to_u64(offset)?;
+                        return Ok(Replconf::Ack(offset));
+                    }
+                }
+                _ => return Ok(Replconf::Default),
+            }
+        }
+
+        Ok(Replconf::Default)
+    }
+}
+
 #[async_trait::async_trait]
 impl CmdExecutor for Replconf {
     async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
@@ -33,8 +58,8 @@ impl CmdExecutor for Replconf {
     async fn hook(
         &self,
         conn: &mut Connection,
-        replacate_msg_sender: &Sender<Frame>,
-        write_cmd_sender: &Sender<Frame>,
+        _replacate_msg_sender: &Sender<Frame>,
+        _write_cmd_sender: &Sender<Frame>,
         db: &Db,
         _frame: Frame,
     ) -> anyhow::Result<()> {
@@ -99,6 +124,29 @@ pub struct Psync {
     pub replid: Option<String>,
     ///  从服务器的复制偏移量
     pub repli_offset: u64,
+}
+
+impl TryFrom<Vec<Bytes>> for Psync {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> std::prelude::v1::Result<Self, Self::Error> {
+        let mut bulks = bulks.into_iter().skip(1);
+
+        let replid = match bulks.next() {
+            Some(replid) => Some(bytes_to_string(replid)?),
+            None => None,
+        };
+
+        let repli_offset = match bulks.next() {
+            Some(offset) => bytes_to_u64(offset)?,
+            None => 0,
+        };
+
+        Ok(Psync {
+            replid,
+            repli_offset,
+        })
+    }
 }
 
 #[async_trait::async_trait]
@@ -248,7 +296,30 @@ pub struct Wait {
     pub numreplicas: u64,
     pub timeout: Duration,
 }
-//
+
+impl TryFrom<Vec<Bytes>> for Wait {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> std::prelude::v1::Result<Self, Self::Error> {
+        let mut bulks = bulks.into_iter().skip(1);
+
+        let numreplicas = match bulks.next() {
+            Some(numreplicas) => bytes_to_u64(numreplicas)?,
+            None => 0,
+        };
+
+        let timeout = match bulks.next() {
+            Some(timeout) => Duration::from_millis(bytes_to_u64(timeout)?),
+            None => Duration::from_millis(60000),
+        };
+
+        Ok(Wait {
+            numreplicas,
+            timeout,
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl CmdExecutor for Wait {
     async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {

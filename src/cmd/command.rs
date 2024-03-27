@@ -41,6 +41,18 @@ pub struct Echo {
     pub msg: Bytes,
 }
 
+impl TryFrom<Vec<Bytes>> for Echo {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> std::prelude::v1::Result<Self, Self::Error> {
+        if let Some(msg) = bulks.get(1) {
+            Ok(Echo { msg: msg.clone() })
+        } else {
+            Err(anyhow!("Incomplete"))
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl CmdExecutor for Echo {
     async fn execute(&self, _db: &Db) -> Result<Option<Frame>> {
@@ -97,10 +109,10 @@ pub enum Section {
 impl TryFrom<Bytes> for Section {
     type Error = Error;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        let value = value.to_ascii_lowercase();
+    fn try_from(bulk: Bytes) -> Result<Self, Self::Error> {
+        let value = bulk.to_ascii_uppercase();
         match value.as_slice() {
-            b"replication" => Ok(Section::Replication),
+            b"REPLICATION" => Ok(Section::Replication),
             // TODO:
             _ => Err(anyhow!("Incomplete")),
         }
@@ -109,9 +121,9 @@ impl TryFrom<Bytes> for Section {
 impl TryFrom<Vec<Bytes>> for Section {
     type Error = Error;
 
-    fn try_from(value: Vec<Bytes>) -> Result<Self, Self::Error> {
-        let mut sections = Vec::with_capacity(value.len());
-        for section in value {
+    fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+        let mut sections = Vec::with_capacity(bulks.len());
+        for section in bulks {
             sections.push(section.try_into()?);
         }
         Ok(Section::Array(sections))

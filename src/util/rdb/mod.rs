@@ -112,7 +112,7 @@ mod test_rdb {
         let key: Bytes = "key".into();
         let object = Object {
             value: Str::Raw("hello".into()),
-            expire_at: None,
+            expire: None,
         };
 
         encode_str_kv(&mut buf, key.clone(), &object);
@@ -124,7 +124,7 @@ mod test_rdb {
         let expire_at = Some(SystemTime::now() + std::time::Duration::from_secs(10));
         let object = Object {
             value: Str::Raw("hello".into()),
-            expire_at,
+            expire: expire_at,
         };
         encode_str_kv(&mut buf, key.clone(), &object);
         let (k, obj) = decode_kv(&mut Cursor::new(buf.clone())).unwrap();
@@ -134,7 +134,7 @@ mod test_rdb {
 
         let object = Object {
             value: Str::Int(10),
-            expire_at: None,
+            expire: None,
         };
         encode_str_kv(&mut buf, key.clone(), &object);
         let (k, obj) = decode_kv(&mut Cursor::new(buf.clone())).unwrap();
@@ -145,7 +145,7 @@ mod test_rdb {
         let expire_at = Some(SystemTime::now() + std::time::Duration::from_secs(10));
         let object = Object {
             value: Str::Int(10),
-            expire_at,
+            expire: expire_at,
         };
         encode_str_kv(&mut buf, key.clone(), &object);
         let (k, obj) = decode_kv(&mut Cursor::new(buf.clone())).unwrap();
@@ -159,19 +159,19 @@ mod test_rdb {
         let db_inner = db.inner.clone();
         let obj1 = Object {
             value: Str::Raw("hello".into()),
-            expire_at: None,
+            expire: None,
         };
         let obj2 = Object {
             value: Str::Int(10),
-            expire_at: None,
+            expire: None,
         };
         let obj3 = Object {
             value: Str::Int(200),
-            expire_at: Some(SystemTime::now() + std::time::Duration::from_secs(10)),
+            expire: Some(SystemTime::now() + std::time::Duration::from_secs(10)),
         };
         let obj4 = Object {
             value: Str::Raw("hello".into()),
-            expire_at: Some(SystemTime::now() + std::time::Duration::from_secs(10)),
+            expire: Some(SystemTime::now() + std::time::Duration::from_secs(10)),
         };
         db_inner.string_kvs.0.insert("key".into(), obj1.clone());
         db_inner.string_kvs.0.insert("key1".into(), obj2.clone());

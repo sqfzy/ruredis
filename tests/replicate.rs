@@ -1,7 +1,6 @@
 use std::thread;
 use std::time::Duration;
 
-use assert_cmd::prelude::*;
 use assert_cmd::Command;
 
 /* 1. 测试全量复制 */

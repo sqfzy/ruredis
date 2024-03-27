@@ -3,13 +3,12 @@ use crate::{
     connection::Connection,
     db::Db,
     frame::Frame,
-    stream::FrameHandler,
     util,
 };
 use anyhow::{bail, Result};
 use bytes::Bytes;
 use std::sync::atomic::Ordering;
-use tokio::{io::AsyncReadExt, net::TcpStream, sync::broadcast::Sender};
+use tokio::{io::AsyncReadExt, sync::broadcast::Sender};
 
 // 连接master server，开始主从复制
 pub async fn start_replicaof(

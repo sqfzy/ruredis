@@ -60,8 +60,6 @@ pub fn _rdb_load(db: &Db, path: &str, enable_checksum: bool) -> anyhow::Result<(
         db.inner.string_kvs.0.insert(key, obj);
     }
 
-    dbg!(&db.inner.string_kvs.0);
-
     cursor.advance(1);
     if enable_checksum {
         let mut checksum = [0; 8];
@@ -120,20 +118,20 @@ pub(super) fn decode_str_kv(
             let _ = cursor.read_exact(&mut raw);
             Object {
                 value: Str::Raw(raw.into()),
-                expire_at,
+                expire: expire_at,
             }
         }
         Length::Int8 => Object {
             value: Str::Int(cursor.get_i8() as i64),
-            expire_at,
+            expire: expire_at,
         },
         Length::Int16 => Object {
             value: Str::Int(cursor.get_i16() as i64),
-            expire_at,
+            expire: expire_at,
         },
         Length::Int32 => Object {
             value: Str::Int(cursor.get_i32() as i64),
-            expire_at,
+            expire: expire_at,
         },
         Length::Lzf => {
             if let (Length::Len(compressed_len), Length::Len(_uncompressed_len)) =
@@ -144,7 +142,7 @@ pub(super) fn decode_str_kv(
                 let raw = lzf::lzf_decompress(&buf);
                 Object {
                     value: Str::Raw(raw),
-                    expire_at,
+                    expire: expire_at,
                 }
             } else {
                 bail!("Invalid LZF length")

@@ -3,6 +3,8 @@ mod rdb;
 mod repl_log;
 mod test_util;
 
+use std::time::SystemTime;
+
 use crate::db::Db;
 use anyhow::{anyhow, Result};
 use bytes::Bytes;
@@ -79,7 +81,11 @@ async fn test_check_expiration_periodical() {
     check_expiration_periodical(Duration::from_millis(500), &db).await;
     {
         let string_kvs = &db.inner.string_kvs;
-        string_kvs.set("foo", "bar", Some(Duration::from_millis(300)));
+        string_kvs.set(
+            "foo",
+            "bar".into(),
+            Some(SystemTime::now() + Duration::from_millis(300)),
+        );
         assert_eq!(Some("bar".into()), string_kvs.get(b"foo"));
     }
     tokio::time::sleep(Duration::from_secs(1)).await;

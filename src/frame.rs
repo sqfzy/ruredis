@@ -21,86 +21,28 @@ impl Frame {
     pub fn parse_cmd(self) -> Result<Box<dyn CmdExecutor>> {
         let bulks: Vec<Bytes> = self.try_into()?;
         let len = bulks.len();
-        let cmd_name = bytes_to_string(bulks[0].clone())?;
-        match cmd_name.to_lowercase().as_str() {
-            "command" => return Ok(Box::new(cmd::Command)),
-            "ping" => {
-                if len == 1 {
-                    return Ok(Box::new(cmd::Ping));
-                }
-            }
-            "echo" => {
-                if len == 2 {
-                    return Ok(Box::new(cmd::Echo {
-                        msg: bulks[1].clone(),
-                    }));
-                }
-            }
-            "get" => {
-                if len == 2 {
-                    return Ok(Box::new(cmd::Get {
-                        key: bulks[1].clone(),
-                    }));
-                }
-                bail!("ERR wrong number of arguments for 'get' command")
-            }
-            "set" => return Ok(Box::new(cmd::Set::try_from(bulks)?) as Box<dyn CmdExecutor>),
-            "info" => return Ok(Box::new(cmd::Info::try_from(bulks)?) as Box<dyn CmdExecutor>),
-            "replconf" => match bulks[1].to_ascii_lowercase().as_slice() {
-                b"getack" => {
-                    // if bulks[2].as_ref() == b"*" {
-                    return Ok(Box::new(cmd::Replconf::GetAck));
-                    // }
-                }
-                b"ack" => {
-                    if let Some(offset) = bulks.get(2) {
-                        let offset = bytes_to_u64(offset.clone())?;
-                        return Ok(Box::new(cmd::Replconf::Ack(offset)));
-                    }
-                }
-                _ => return Ok(Box::<cmd::Replconf>::default()),
-            },
-            "psync" => {
-                if let Some(replid) = bulks.get(1) {
-                    // 如果replid为"?"，则表示replicate请求master进行全量同步
-                    if replid == &Bytes::from_static(b"?") {
-                        return Ok(Box::new(cmd::Psync {
-                            replid: None,
-                            repli_offset: 0,
-                        }));
-                    }
-                    // 如果replid为40个随机字符，则表示master请求slave进行增量同步
-                    let replid = bytes_to_string(replid.clone())?;
-                    if let Some(offset) = bulks.get(2) {
-                        let offset = bytes_to_u64(offset.clone())?;
-                        return Ok(Box::new(cmd::Psync {
-                            replid: Some(replid),
-                            repli_offset: offset,
-                        }));
-                    }
-                }
-            }
-            "wait" => {
-                if let Some(numreplicas) = bulks.get(1) {
-                    let numreplicas = bytes_to_u64(numreplicas.clone())?;
-                    if let Some(timeout) = bulks.get(2) {
-                        let timeout = Duration::from_millis(bytes_to_u64(timeout.clone())?);
-                        return Ok(Box::new(cmd::Wait {
-                            numreplicas,
-                            timeout,
-                        }));
-                    }
-                }
-            }
-            "bgsave" => return Ok(Box::new(cmd::BgSave)),
-            _ => {}
+        if len == 0 {
+            bail!("ERR command syntax error")
         }
 
-        Err(anyhow!(
-            // "ERR unknown command {}, with args beginning with:",
-            "ERR unknown command {}",
-            cmd_name
-        ))
+        Ok(match bulks[0].to_ascii_uppercase().as_slice() {
+            b"COMMAND" => Box::new(cmd::Command),
+            b"PING" => Box::new(cmd::Ping),
+            b"PONG" => Box::new(cmd::Echo::try_from(bulks)?),
+            b"GET" => Box::new(cmd::Get::try_from(bulks)?),
+            b"SET" => Box::new(cmd::Set::try_from(bulks)?),
+            b"INFO" => Box::new(cmd::Info::try_from(bulks)?),
+            b"REPLCONF" => Box::new(cmd::Replconf::try_from(bulks)?),
+            b"PSYNC" => Box::new(cmd::Psync::try_from(bulks)?),
+            b"WAIT" => Box::new(cmd::Wait::try_from(bulks)?),
+            b"BGSAVE" => Box::new(cmd::BgSave),
+            _ => {
+                bail!(
+                    "ERR unknown command '{}'",
+                    bytes_to_string(bulks[0].clone())?
+                )
+            }
+        })
     }
 
     // Frame的字节长度
@@ -146,70 +88,6 @@ impl Display for Frame {
                 write!(f, "{}", s)
             }
         }
-    }
-}
-
-impl TryFrom<Vec<Bytes>> for cmd::Set {
-    type Error = Error;
-    fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
-        let len = bulks.len();
-        if len >= 3 {
-            let key = bulks[1].clone();
-            let value = bulks[2].clone();
-
-            if len == 3 {
-                return Ok(cmd::Set {
-                    key,
-                    value,
-                    expire: None,
-                    keep_ttl: false,
-                });
-            }
-            if len == 4 {
-                #[allow(clippy::single_match)]
-                match bulks[4].to_ascii_lowercase().as_slice() {
-                    b"keepttl" => {
-                        return Ok(cmd::Set {
-                            key,
-                            value,
-                            expire: None,
-                            keep_ttl: true,
-                        });
-                    }
-                    _ => {}
-                }
-            }
-            if len == 5 {
-                let expire_unit = bulks[3].to_ascii_lowercase();
-                let expire = bytes_to_u64(bulks[4].clone())?;
-
-                if expire == 0 {
-                    bail!("ERR invalid expire time in 'set' command")
-                }
-
-                match expire_unit.as_slice() {
-                    b"ex" => {
-                        return Ok(cmd::Set {
-                            key,
-                            value,
-                            expire: Some(Duration::from_secs(expire)),
-                            keep_ttl: false,
-                        });
-                    }
-                    b"px" => {
-                        return Ok(cmd::Set {
-                            key,
-                            value,
-                            expire: Some(Duration::from_millis(expire)),
-                            keep_ttl: false,
-                        });
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        Err(anyhow!("ERR syntax error"))
     }
 }
 

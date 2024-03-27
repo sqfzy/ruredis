@@ -1,14 +1,11 @@
 use crate::connection::Connection;
+use crate::util;
 use crate::{conf::CONFIG, db::Db, frame::Frame};
-use crate::{connection, util};
 use anyhow::Result;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::sync::broadcast::Sender;
-use tokio::{
-    net::{TcpListener, TcpStream},
-    sync::broadcast::channel,
-};
+use tokio::{net::TcpListener, sync::broadcast::channel};
 use tracing::{debug, error};
 
 pub async fn run() {

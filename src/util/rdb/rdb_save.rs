@@ -46,7 +46,7 @@ pub fn _rdb_save(db: &Db, path: &str, enable_checksum: bool) -> anyhow::Result<(
 }
 
 pub(super) fn encode_str_kv(buf: &mut Vec<u8>, key: Bytes, obj: &Object<Str>) {
-    let expire_at = obj.expire_at;
+    let expire_at = obj.expire;
     if let Some(expire_at) = expire_at {
         if let Ok(expire) = expire_at.duration_since(UNIX_EPOCH) {
             buf.put_u8(RDB_OPCODE_EXPIRETIME_MS);
