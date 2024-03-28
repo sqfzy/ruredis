@@ -3,7 +3,7 @@ mod rdb;
 mod repl_log;
 mod test_util;
 
-use std::time::SystemTime;
+use std::{io::stderr, ops::RangeFull, time::SystemTime};
 
 use crate::db::Db;
 use anyhow::{anyhow, Result};
@@ -60,12 +60,20 @@ pub async fn check_expiration_periodical(period: Duration, db: &Db) {
             {
                 tokio::time::sleep(period).await;
 
-                // TODO:
-                // let keys_to_check: Vec<_> = db.inner.string_kvs.0;
-                //
-                // for key in keys_to_check {
-                //     writer_guard.string_kvs.check_exist(key);
-                // }
+                let keys = db.inner.string_kvs.0.iter().filter_map(|kv| {
+                    if let Some(expire) = kv.expire {
+                        if expire <= SystemTime::now() {
+                            Some(kv.key().clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                });
+                for key in keys {
+                    db.inner.string_kvs.0.remove(&key);
+                }
             }
             {
                 // TODO: list
@@ -86,13 +94,13 @@ async fn test_check_expiration_periodical() {
             "bar".into(),
             Some(SystemTime::now() + Duration::from_millis(300)),
         );
-        assert_eq!(Some("bar".into()), string_kvs.get(b"foo"));
+        assert_eq!(Some("bar".into()), string_kvs.get(b"foo", RangeFull.into()));
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     let string_kvs = &db.inner.string_kvs;
     // "foo"过期后应当被检查程序删除
-    if string_kvs.get(b"foo").is_some() {
+    if string_kvs.get(b"foo", RangeFull.into()).is_some() {
         panic!("key foo should be deleted");
     }
 }

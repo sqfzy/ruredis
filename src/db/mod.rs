@@ -12,7 +12,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-pub use str::Str;
+pub use str::{IndexRange, Str};
 
 // pub const MAX_KVPAIRS_NUMS: u64 = u64::MAX;
 
@@ -38,6 +38,25 @@ impl Db {
 
 #[derive(Debug, Clone)]
 pub struct KvPairs<T: ObjValueCODEC>(pub DashMap<Bytes, Object<T>>);
+
+impl<'a> IntoIterator for &'a KvPairs<Str> {
+    type Item = dashmap::mapref::multiple::RefMulti<'a, bytes::Bytes, Object<Str>>;
+    type IntoIter = KvPairsIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        KvPairsIter(self.0.iter())
+    }
+}
+
+pub struct KvPairsIter<'a>(dashmap::iter::Iter<'a, Bytes, Object<Str>>);
+
+impl<'a> Iterator for KvPairsIter<'a> {
+    type Item = dashmap::mapref::multiple::RefMulti<'a, bytes::Bytes, Object<Str>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
 
 impl<T: ObjValueCODEC + PartialEq + Eq> KvPairs<T> {
     pub fn get(&self, key: &[u8], index: T::Index) -> Option<T::Output> {
@@ -158,35 +177,6 @@ impl<T: PartialEq + Eq + ObjValueCODEC> PartialEq for Object<T> {
         } else {
             false
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum IndexRange {
-    Range(std::ops::Range<usize>),
-    RangeFrom(std::ops::RangeFrom<usize>),
-    RangeTo(std::ops::RangeTo<usize>),
-    RangeFull(std::ops::RangeFull),
-}
-
-impl From<std::ops::Range<usize>> for IndexRange {
-    fn from(range: std::ops::Range<usize>) -> Self {
-        Self::Range(range)
-    }
-}
-impl From<std::ops::RangeFrom<usize>> for IndexRange {
-    fn from(range: std::ops::RangeFrom<usize>) -> Self {
-        Self::RangeFrom(range)
-    }
-}
-impl From<std::ops::RangeTo<usize>> for IndexRange {
-    fn from(range: std::ops::RangeTo<usize>) -> Self {
-        Self::RangeTo(range)
-    }
-}
-impl From<std::ops::RangeFull> for IndexRange {
-    fn from(range: std::ops::RangeFull) -> Self {
-        Self::RangeFull(range)
     }
 }
 
