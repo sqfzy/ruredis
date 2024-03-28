@@ -9,7 +9,6 @@ pub enum List {
 }
 
 impl ObjValueCODEC for List {
-    type Index = std::ops::Range<usize>;
     type Input = Vec<Bytes>;
     type Output = Vec<Bytes>;
 

@@ -1,13 +1,14 @@
-mod hash;
-mod list;
-mod set;
+// mod hash;
+// mod list;
+// mod set;
 mod str;
-mod zset;
+// mod zset;
 
 use bytes::Bytes;
 use dashmap::DashMap;
 use skiplist::SkipList;
 use std::{
+    ops::RangeBounds,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -37,7 +38,7 @@ impl Db {
 }
 
 #[derive(Debug, Clone)]
-pub struct KvPairs<T: ObjValueCODEC>(pub DashMap<Bytes, Object<T>>);
+pub struct KvPairs<T: ObjValueCODEC + IntoIterator>(pub DashMap<Bytes, Object<T>>);
 
 impl<'a> IntoIterator for &'a KvPairs<Str> {
     type Item = dashmap::mapref::multiple::RefMulti<'a, bytes::Bytes, Object<Str>>;
@@ -58,8 +59,8 @@ impl<'a> Iterator for KvPairsIter<'a> {
     }
 }
 
-impl<T: ObjValueCODEC + PartialEq + Eq> KvPairs<T> {
-    pub fn get(&self, key: &[u8], index: T::Index) -> Option<T::Output> {
+impl<T: ObjValueCODEC + PartialEq + Eq + IntoIterator> KvPairs<T> {
+    pub fn get(&self, key: &[u8]) -> Option<T::Output> {
         // 找到key对应的obj则继续，否则返回None
         if let Some(obj) = self.0.get(key) {
             // 检查键是否过期了，如果键已经过期则移除并返回None，否则返回Some(value)
@@ -69,7 +70,7 @@ impl<T: ObjValueCODEC + PartialEq + Eq> KvPairs<T> {
                     return None;
                 }
             }
-            return Some((*obj).value(index));
+            return Some((*obj).value());
         };
 
         None
@@ -140,12 +141,12 @@ impl<T: ObjValueCODEC + PartialEq + Eq> KvPairs<T> {
 }
 
 #[derive(Debug, Clone, Eq)]
-pub struct Object<T: ObjValueCODEC> {
+pub struct Object<T: ObjValueCODEC + IntoIterator> {
     pub value: T,
     pub expire: Option<SystemTime>, // None代表永不过期
 }
 
-impl<T: ObjValueCODEC> Object<T> {
+impl<T: ObjValueCODEC + IntoIterator> Object<T> {
     pub fn new(value: T::Input, expire_at: Option<SystemTime>) -> Self {
         Self {
             value: T::encode(value),
@@ -153,8 +154,8 @@ impl<T: ObjValueCODEC> Object<T> {
         }
     }
 
-    pub fn value(&self, index: T::Index) -> T::Output {
-        self.value.decode(index)
+    pub fn value(&self) -> T::Output {
+        self.value.decode()
     }
 
     pub fn set_value(&mut self, value: T::Input) {
@@ -162,7 +163,7 @@ impl<T: ObjValueCODEC> Object<T> {
     }
 }
 
-impl<T: PartialEq + Eq + ObjValueCODEC> PartialEq for Object<T> {
+impl<T: PartialEq + Eq + ObjValueCODEC + IntoIterator> PartialEq for Object<T> {
     fn eq(&self, other: &Self) -> bool {
         if self.expire.is_none() && other.expire.is_none() {
             self.value == other.value
@@ -181,10 +182,9 @@ impl<T: PartialEq + Eq + ObjValueCODEC> PartialEq for Object<T> {
 }
 
 pub trait ObjValueCODEC {
-    type Index;
     type Input;
     type Output;
 
     fn encode(input: Self::Input) -> Self;
-    fn decode(&self, index: Self::Index) -> Self::Output;
+    fn decode(&self) -> Self::Output;
 }

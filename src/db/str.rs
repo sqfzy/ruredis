@@ -8,7 +8,6 @@ pub enum Str {
 }
 
 impl ObjValueCODEC for Str {
-    type Index = IndexRange;
     type Input = Bytes;
     type Output = Bytes;
 
@@ -21,14 +20,9 @@ impl ObjValueCODEC for Str {
         Self::Raw(input)
     }
 
-    fn decode(&self, index: Self::Index) -> Self::Output {
+    fn decode(&self) -> Self::Output {
         match self {
-            Self::Raw(b) => match index {
-                IndexRange::Range(range) => b.slice(range),
-                IndexRange::RangeFrom(range) => b.slice(range.start..),
-                IndexRange::RangeTo(range) => b.slice(..range.end),
-                IndexRange::RangeFull(_) => b.clone(),
-            },
+            Self::Raw(b) => b.clone(),
             Self::Int(i) => Bytes::from(i.to_string()),
         }
     }
@@ -42,6 +36,30 @@ impl<'a> IntoIterator for &'a Str {
         match self {
             Str::Raw(b) => StrIter::Raw(b.iter()),
             Str::Int(i) => StrIter::Int(std::iter::once(i)),
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Str {
+    type Item = StrIterItemMut<'a>;
+    type IntoIter = StrIterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Str::Raw(b) => StrIterMut::Raw(b.iter_mut()),
+            Str::Int(i) => StrIterMut::Int(std::iter::once(i)),
+        }
+    }
+}
+
+impl IntoIterator for Str {
+    type Item = StrIntoIterItem;
+    type IntoIter = StrIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Str::Raw(b) => StrIntoIter::Raw(b.into_iter()),
+            Str::Int(i) => StrIntoIter::Int(std::iter::once(i)),
         }
     }
 }
@@ -60,7 +78,7 @@ pub enum StrIterMut<'a> {
 
 #[derive(Debug)]
 pub enum StrIntoIter {
-    Raw(std::vec::IntoIter<u8>),
+    Raw(bytes::buf::IntoIter<bytes::Bytes>),
     Int(std::iter::Once<i64>),
 }
 
