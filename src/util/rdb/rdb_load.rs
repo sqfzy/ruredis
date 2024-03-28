@@ -10,7 +10,7 @@ use crate::{
     db::{Db, Object, Str},
 };
 use anyhow::bail;
-use bytes::{Buf, Bytes};
+use bytes::{Buf, Bytes, BytesMut};
 
 pub fn rdb_load(db: &Db) -> anyhow::Result<()> {
     _rdb_load(db, &CONFIG.rdb.file_path, CONFIG.rdb.enable_checksum)
@@ -114,10 +114,10 @@ pub(super) fn decode_str_kv(
     let key = decode_key(cursor)?;
     let str = match decode_length(cursor)? {
         Length::Len(len) => {
-            let mut raw = vec![0; len];
+            let mut raw = BytesMut::from(vec![0; len].as_slice());
             let _ = cursor.read_exact(&mut raw);
             Object {
-                value: Str::Raw(raw.into()),
+                value: Str::Raw(bytes::BytesMut::from(raw)),
                 expire: expire_at,
             }
         }
@@ -141,7 +141,7 @@ pub(super) fn decode_str_kv(
                 cursor.read_exact(&mut buf)?;
                 let raw = lzf::lzf_decompress(&buf);
                 Object {
-                    value: Str::Raw(raw),
+                    value: Str::Raw(bytes::BytesMut::from(raw.as_ref())),
                     expire: expire_at,
                 }
             } else {

@@ -94,13 +94,13 @@ async fn test_check_expiration_periodical() {
             "bar".into(),
             Some(SystemTime::now() + Duration::from_millis(300)),
         );
-        assert_eq!(Some("bar".into()), string_kvs.get(b"foo", RangeFull.into()));
+        assert_eq!(Some("bar".into()), string_kvs.get(b"foo"));
     }
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     let string_kvs = &db.inner.string_kvs;
     // "foo"过期后应当被检查程序删除
-    if string_kvs.get(b"foo", RangeFull.into()).is_some() {
+    if string_kvs.get(b"foo").is_some() {
         panic!("key foo should be deleted");
     }
 }

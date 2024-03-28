@@ -2,12 +2,12 @@ use super::CmdExecutor;
 use crate::{
     conf::CONFIG,
     connection::Connection,
-    db::{Db, IndexRange},
+    db::{Db, Str},
     frame::Frame,
     util,
 };
 use anyhow::{anyhow, bail, Error, Result};
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use std::{
     ops::RangeFull,
     time::{Duration, SystemTime},
@@ -82,7 +82,7 @@ impl TryFrom<Vec<Bytes>> for Get {
 impl CmdExecutor for Get {
     async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'GET'");
-        let frame = match db.inner.string_kvs.get(&self.key, RangeFull.into()) {
+        let frame = match db.inner.string_kvs.get(&self.key) {
             Some(value) => Frame::Bulk(value),
             // 键不存在，或已过期
             None => Frame::Null,
@@ -152,10 +152,11 @@ impl TryFrom<Vec<Bytes>> for Set {
 impl CmdExecutor for Set {
     async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
         debug!("executing command 'SET'");
-        db.clone()
-            .inner
-            .string_kvs
-            .set(self.key.clone(), self.value.clone(), self.expire);
+        db.clone().inner.string_kvs.set(
+            self.key.clone(),
+            BytesMut::from(self.value.as_ref()),
+            self.expire,
+        );
         Ok(Some(Frame::Simple("OK".to_string())))
     }
 
@@ -176,5 +177,337 @@ impl CmdExecutor for Set {
 }
 
 pub struct GetRange {
+    pub key: Bytes,
+    pub range: std::ops::Range<usize>,
+}
+
+impl TryFrom<Vec<Bytes>> for GetRange {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+        if bulks.len() != 4 {
+            bail!("ERR wrong number of arguments for 'getrange' command")
+        }
+        let key = bulks[2].clone();
+        let start = util::bytes_to_u64(bulks[3].clone())? as usize;
+        let end = util::bytes_to_u64(bulks[4].clone())? as usize;
+        Ok(GetRange {
+            key,
+            range: start..end,
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for GetRange {
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+        debug!("executing command 'GETRANGE'");
+        if let Some(value) = db.inner.string_kvs.get(&self.key) {
+            let value = value.slice(self.range.clone());
+            Ok(Some(Frame::Bulk(value)))
+        } else {
+            Ok(Some(Frame::Null))
+        }
+    }
+}
+
+pub struct GetSet {
+    pub key: Bytes,
+    pub value: Bytes,
+}
+
+impl TryFrom<Vec<Bytes>> for GetSet {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+        if bulks.len() != 3 {
+            bail!("ERR wrong number of arguments for 'getset' command")
+        }
+        Ok(GetSet {
+            key: bulks[2].clone(),
+            value: bulks[3].clone(),
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for GetSet {
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+        debug!("executing command 'GETSET'");
+        let old_value = match db.inner.string_kvs.get(&self.key) {
+            Some(value) => Frame::Bulk(value),
+            None => Frame::Null,
+        };
+        db.inner
+            .string_kvs
+            .set(self.key.clone(), BytesMut::from(self.value.as_ref()), None);
+        Ok(Some(old_value))
+    }
+}
+
+pub struct MGet {
     pub keys: Vec<Bytes>,
 }
+
+impl TryFrom<Vec<Bytes>> for MGet {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+        if bulks.len() < 2 {
+            bail!("ERR wrong number of arguments for 'mget' command")
+        }
+        Ok(MGet {
+            keys: bulks.into_iter().skip(1).collect(),
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for MGet {
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+        debug!("executing command 'MGET'");
+        let mut frames = Vec::with_capacity(self.keys.len());
+        for key in &self.keys {
+            if let Some(value) = db.inner.string_kvs.get(key) {
+                frames.push(Frame::Bulk(value));
+            } else {
+                frames.push(Frame::Null);
+            }
+        }
+        Ok(Some(Frame::Array(frames)))
+    }
+}
+
+pub struct SetEx {
+    pub key: Bytes,
+    pub expire: Duration,
+    pub value: Bytes,
+}
+
+impl TryFrom<Vec<Bytes>> for SetEx {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+        let mut bulks = bulks.into_iter().skip(1);
+
+        let key = if let Some(key) = bulks.next() {
+            key
+        } else {
+            bail!("ERR wrong number of arguments for 'setex' command")
+        };
+
+        let expire = if let Some(val) = bulks.next() {
+            Duration::from_secs(util::bytes_to_u64(val)?)
+        } else {
+            bail!("ERR wrong number of arguments for 'setex' command")
+        };
+
+        let value = if let Some(value) = bulks.next() {
+            value
+        } else {
+            bail!("ERR wrong number of arguments for 'setex' command")
+        };
+
+        Ok(SetEx { key, value, expire })
+    }
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for SetEx {
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+        debug!("executing command 'SETEX'");
+        db.inner.string_kvs.set_ttl(&self.key, self.expire);
+
+        Ok(Some(Frame::Simple("OK".to_string())))
+    }
+}
+
+pub struct SetNx {
+    pub key: Bytes,
+    pub value: Bytes,
+}
+
+impl TryFrom<Vec<Bytes>> for SetNx {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+        if bulks.len() != 3 {
+            bail!("ERR wrong number of arguments for 'setnx' command")
+        }
+        Ok(SetNx {
+            key: bulks[2].clone(),
+            value: bulks[3].clone(),
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for SetNx {
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+        debug!("executing command 'SETNX'");
+        if db.inner.string_kvs.get(&self.key).is_some() {
+            Ok(Some(Frame::Integer(0)))
+        } else {
+            db.inner.string_kvs.set(
+                self.key.clone(),
+                BytesMut::from(self.value.as_ref()),
+                Some(SystemTime::UNIX_EPOCH),
+            );
+            Ok(Some(Frame::Integer(1)))
+        }
+    }
+}
+
+pub struct Incr {
+    pub key: Bytes,
+}
+
+impl TryFrom<Vec<Bytes>> for Incr {
+    type Error = Error;
+
+    fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+        if bulks.len() != 2 {
+            bail!("ERR wrong number of arguments for 'incr' command")
+        }
+        Ok(Incr {
+            key: bulks[2].clone(),
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl CmdExecutor for Incr {
+    async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+        debug!("executing command 'INCR'");
+        if let Some(obj) = db.inner.string_kvs.0.get_mut(&self.key) {
+            match obj.value {
+                Str::Int(i) => {
+                    let value = i + 1;
+                    Ok(Some(Frame::Integer(value)))
+                }
+                Str::Raw(_) => {
+                    return Ok(Some(Frame::Error(
+                        "ERR value is not an integer or out of range".to_string(),
+                    )))
+                }
+            }
+        } else {
+            Ok(Some(Frame::Null))
+        }
+    }
+}
+
+// pub struct IncrBy {
+//     pub key: Bytes,
+//     pub increment: i64,
+// }
+//
+// impl TryFrom<Vec<Bytes>> for IncrBy {
+//     type Error = Error;
+//
+//     fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+//         if bulks.len() != 3 {
+//             bail!("ERR wrong number of arguments for 'incrby' command")
+//         }
+//         Ok(IncrBy {
+//             key: bulks[2].clone(),
+//             increment: util::bytes_to_i64(bulks[3].clone())?,
+//         })
+//     }
+// }
+//
+// #[async_trait::async_trait]
+// impl CmdExecutor for IncrBy {
+//     async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+//         debug!("executing command 'INCRBY'");
+//         let value = match db.inner.string_kvs.get(&self.key) {
+//             Some(value) => {
+//                 let value = util::bytes_to_i64(value)?;
+//                 value + self.increment
+//             }
+//             None => self.increment,
+//         };
+//         db.inner.string_kvs.set(
+//             self.key.clone(),
+//             BytesMut::from(value.to_string().as_bytes()),
+//             Some(SystemTime::UNIX_EPOCH),
+//         );
+//         Ok(Some(Frame::Integer(value))
+//     }
+// }
+//
+// pub struct Decr {
+//     pub key: Bytes,
+// }
+//
+// impl TryFrom<Vec<Bytes>> for Decr {
+//     type Error = Error;
+//
+//     fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+//         if bulks.len() != 2 {
+//             bail!("ERR wrong number of arguments for 'decr' command")
+//         }
+//         Ok(Decr {
+//             key: bulks[2].clone(),
+//         })
+//     }
+// }
+//
+// #[async_trait::async_trait]
+// impl CmdExecutor for Decr {
+//     async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+//         debug!("executing command 'DECR'");
+//         let value = match db.inner.string_kvs.get(&self.key) {
+//             Some(value) => {
+//                 let value = util::bytes_to_i64(value)?;
+//                 value - 1
+//             }
+//             None => -1,
+//         };
+//         db.inner.string_kvs.set(
+//             self.key.clone(),
+//             BytesMut::from(value.to_string().as_bytes()),
+//             Some(SystemTime::UNIX_EPOCH),
+//         );
+//         Ok(Some(Frame::Integer(value))
+//     }
+// }
+//
+// pub struct DecrBy {
+//     pub key: Bytes,
+//     pub decrement: i64,
+// }
+//
+// impl TryFrom<Vec<Bytes>> for DecrBy {
+//     type Error = Error;
+//
+//     fn try_from(bulks: Vec<Bytes>) -> Result<Self, Self::Error> {
+//         if bulks.len() != 3 {
+//             bail!("ERR wrong number of arguments for 'decrby' command")
+//         }
+//         Ok(DecrBy {
+//             key: bulks[2].clone(),
+//             decrement: util::bytes_to_i64(bulks[3].clone())?,
+//         })
+//     }
+// }
+//
+// #[async_trait::async_trait]
+// impl CmdExecutor for DecrBy {
+//     async fn execute(&self, db: &Db) -> Result<Option<Frame>> {
+//         debug!("executing command 'DECRBY'");
+//         let value = match db.inner.string_kvs.get(&self.key) {
+//             Some(value) => {
+//                 let value = util::bytes_to_i64(value)?;
+//                 value - self.decrement
+//             }
+//             None => -self.decrement,
+//         };
+//         db.inner.string_kvs.set(
+//             self.key.clone(),
+//             BytesMut::from(value.to_string().as_bytes()),
+//             Some(SystemTime::UNIX_EPOCH),
+//         );
+//         Ok(Some(Frame::Integer(value))
+//     }
+// }

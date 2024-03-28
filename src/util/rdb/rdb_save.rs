@@ -60,7 +60,7 @@ pub(super) fn encode_str_kv(buf: &mut Vec<u8>, key: Bytes, obj: &Object<Str>) {
     encode_key(buf, key);
     match &obj.value {
         Str::Int(i) => encode_int(buf, *i as i32),
-        Str::Raw(s) => encode_raw(buf, s.clone()),
+        Str::Raw(s) => encode_raw(buf, s.clone().freeze()),
     }
 }
 

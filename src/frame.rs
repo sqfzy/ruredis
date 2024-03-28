@@ -10,7 +10,7 @@ use std::{fmt::Display, time::Duration, u64};
 pub enum Frame {
     Simple(String), // +<str>\r\n
     Error(String),  // -<err>\r\n
-    Integer(u64),   // :<num>\r\n
+    Integer(i64),   // :<num>\r\n
     Bulk(Bytes),    // $<len>\r\n<bytes>\r\n
     #[default]
     Null, // $-1\r\n
